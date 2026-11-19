@@ -1,0 +1,816 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로컬 문서 탐색기</title>
+<!--
+  로컬 문서 탐색기 (HTML 파일 하나로 동작)
+  - 이 파일만 복사하면 어느 컴퓨터에서든 똑같이 쓸 수 있습니다. 인터넷 연결이나 설치가 필요 없습니다.
+  - 크롬 / 엣지: 폴더 목록 저장 + 3초마다 자동 확인
+  - 그 외 브라우저: 폴더를 한 번 불러와서 보기·검색 (자동 확인 없음)
+  - 파일은 읽기만 하며 수정·삭제하거나 외부로 보내지 않습니다.
+-->
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --line: #e2e5ea; --text: #1c2230; --muted: #6b7280;
+  --accent: #2f6fed; --accent-soft: #e8f0fe; --mark: #ffe27a; --mark-text: #1c2230;
+  --new: #15803d; --new-soft: #dcfce7; --code: #f1f3f6; --danger: #b91c1c;
+  --md: #7c3aed; --txt: #475569; --html: #ea580c; --folder: #e0a526;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13151a; --panel: #1b1e25; --line: #2b303a; --text: #e5e7eb; --muted: #9aa3b2;
+    --accent: #6d9cff; --accent-soft: #1f2c47; --mark: #8a6d0b; --mark-text: #fff7d6;
+    --new: #4ade80; --new-soft: #14341f; --code: #242932; --danger: #f87171;
+    --md: #a78bfa; --txt: #94a3b8; --html: #fb923c; --folder: #f2c14e;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/1.55 "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif;
+  display: flex; flex-direction: column;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+svg.i { width: 15px; height: 15px; vertical-align: -2px; flex: none; }
+svg.folder { color: var(--folder); }
+header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+}
+header h1 { font-size: 16px; margin: 0 8px 0 0; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+header h1 svg { width: 20px; height: 20px; }
+.btn {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+  padding: 6px 12px; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.search { flex: 1; min-width: 220px; position: relative; display: block; }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.search input {
+  width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); color: var(--text); font: inherit; outline: none;
+}
+.search input:focus { border-color: var(--accent); background: var(--panel); }
+main { flex: 1; display: flex; min-height: 0; }
+aside {
+  width: 360px; min-width: 260px; background: var(--panel); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.roots { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; max-height: 30vh; overflow: auto; }
+.roots .rtitle { font-size: 12px; color: var(--muted); font-weight: 700; padding: 0 4px 2px; }
+.root { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 8px; border-radius: 6px; background: var(--bg); font-size: 13px; }
+.root .rname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.root .rcnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.root .rwarn { font-size: 11px; color: var(--danger); white-space: nowrap; }
+.root button { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 16px; line-height: 1; }
+.root button:hover { color: var(--danger); }
+.root.off .rname { color: var(--muted); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tab {
+  flex: 1; padding: 10px 4px; border: 0; background: none; color: var(--muted);
+  border-bottom: 2px solid transparent; font-weight: 700;
+}
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .cnt { font-weight: 400; font-size: 12px; margin-left: 3px; }
+.filters { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.chip {
+  border: 1px solid var(--line); background: none; border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted);
+}
+.chip.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.list { flex: 1; overflow: auto; padding: 4px 0 12px; }
+.group { display: flex; align-items: center; gap: 6px; padding: 10px 14px 4px; font-size: 12px; color: var(--muted); font-weight: 700; word-break: break-all; }
+.item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center;
+  width: 100%; text-align: left; border: 0; background: none; padding: 7px 14px; border-left: 3px solid transparent;
+}
+.item:hover { background: var(--bg); }
+.item.on { background: var(--accent-soft); border-left-color: var(--accent); }
+.item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { grid-column: 2 / 4; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .snip { grid-column: 1 / 4; font-size: 12px; color: var(--muted); line-height: 1.5; word-break: break-all; }
+.ext { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; color: #fff; letter-spacing: .3px; font-family: Arial, sans-serif; }
+.ext.md { background: var(--md); } .ext.txt { background: var(--txt); } .ext.html { background: var(--html); }
+.badge { font-size: 10px; font-weight: 700; color: var(--new); background: var(--new-soft); border-radius: 4px; padding: 1px 6px; font-family: Arial, sans-serif; }
+.hits { font-size: 11px; color: var(--accent); white-space: nowrap; }
+.empty { padding: 30px 20px; color: var(--muted); text-align: center; line-height: 1.8; }
+mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+mark.cur { outline: 2px solid var(--accent); }
+section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.vhead {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: var(--panel);
+  border-bottom: 1px solid var(--line); flex-wrap: wrap;
+}
+.vhead[hidden] { display: none; }
+.vhead .vtitle { font-weight: 700; font-size: 15px; word-break: break-all; }
+.vhead .info { color: var(--muted); font-size: 12px; }
+.vhead .spacer { flex: 1; }
+.vbody { flex: 1; overflow: auto; padding: 22px 28px 60px; }
+.vbody pre.plain { white-space: pre-wrap; word-break: break-word; margin: 0; font: 13.5px/1.65 Consolas, "D2Coding", "Malgun Gothic", monospace; }
+.vbody iframe { width: 100%; height: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.md { max-width: 860px; }
+.md h1, .md h2 { border-bottom: 1px solid var(--line); padding-bottom: .3em; }
+.md h1 { font-size: 1.8em; } .md h2 { font-size: 1.45em; } .md h3 { font-size: 1.2em; }
+.md code { background: var(--code); padding: .1em .35em; border-radius: 4px; font-family: Consolas, "D2Coding", monospace; font-size: .92em; }
+.md pre { background: var(--code); padding: 12px 14px; border-radius: 8px; overflow: auto; }
+.md pre code { background: none; padding: 0; }
+.md blockquote { margin: 0; padding: 2px 14px; border-left: 4px solid var(--line); color: var(--muted); }
+.md table { border-collapse: collapse; margin: 10px 0; display: block; overflow: auto; }
+.md th, .md td { border: 1px solid var(--line); padding: 6px 12px; }
+.md th { background: var(--bg); }
+.md a { color: var(--accent); }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+.md .img { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); padding: 1px 6px; border-radius: 4px; }
+.md li > input { margin-right: 6px; }
+footer {
+  display: flex; gap: 14px; padding: 5px 16px; background: var(--panel); border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--muted); flex-wrap: wrap; align-items: center;
+}
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
+.live .dot { background: var(--new); }
+.toast {
+  position: fixed; right: 18px; bottom: 40px; background: var(--text); color: var(--panel);
+  padding: 10px 16px; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25);
+  opacity: 0; transform: translateY(10px); transition: .25s; pointer-events: none; max-width: 360px;
+}
+.toast.show { opacity: 1; transform: none; }
+.welcome { max-width: 580px; margin: 8vh auto; text-align: center; color: var(--muted); line-height: 1.9; }
+.welcome h2 { color: var(--text); }
+.warn { color: var(--danger); }
+@media (max-width: 760px) {
+  main { flex-direction: column; }
+  aside { width: 100%; height: 45vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .vbody { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1><svg class="i folder" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.6c.7 0 1.3.3 1.8.8L12.4 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>로컬 문서 탐색기</h1>
+  <button class="btn primary" id="pickBtn">+ 폴더 추가</button>
+  <button class="btn" id="reconnectBtn" hidden>다시 연결</button>
+  <input type="file" id="dirInput" webkitdirectory multiple hidden>
+  <label class="search">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="q" type="search" placeholder="파일 이름과 내용 검색 (띄어쓰기 = 모두 포함) · 단축키 /" autocomplete="off" spellcheck="false">
+  </label>
+</header>
+<main>
+  <aside>
+    <div class="roots" id="roots"></div>
+    <div class="tabs">
+      <button class="tab on" data-tab="all">전체<span class="cnt" id="cntAll"></span></button>
+      <button class="tab" data-tab="recent">최근<span class="cnt" id="cntRecent"></span></button>
+      <button class="tab" data-tab="search">검색<span class="cnt" id="cntSearch"></span></button>
+    </div>
+    <div class="filters">
+      <button class="chip on" data-ext="">전체</button>
+      <button class="chip" data-ext="md">MD</button>
+      <button class="chip" data-ext="txt">TXT</button>
+      <button class="chip" data-ext="html">HTML</button>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+  <section class="viewer">
+    <div class="vhead" id="vhead" hidden>
+      <span class="ext" id="vExt"></span>
+      <span class="vtitle" id="vTitle"></span>
+      <span class="info" id="vInfo"></span>
+      <span class="spacer"></span>
+      <span class="info" id="vHits"></span>
+      <button class="btn" id="prevHit" hidden title="이전 (Shift+F3)">이전</button>
+      <button class="btn" id="nextHit" hidden title="다음 (F3)">다음</button>
+      <button class="btn" id="modeBtn" hidden></button>
+    </div>
+    <div class="vbody" id="vbody"></div>
+  </section>
+</main>
+<footer>
+  <span id="liveState"><span class="dot"></span>폴더 없음</span>
+  <span id="stat"></span>
+  <span id="lastScan"></span>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ===== 설정 =====
+var EXT_GROUP = { md: 'md', markdown: 'md', txt: 'txt', log: 'txt', html: 'html', htm: 'html' };
+var SKIP_DIRS = { '.git': 1, 'node_modules': 1, '.dart_tool': 1, '.idea': 1, '.vscode': 1, 'build': 1, 'bin': 1, 'obj': 1, '.gradle': 1, '__pycache__': 1 };
+var MAX_READ = 5 * 1024 * 1024;   // 5MB 넘는 파일은 내용을 읽지 않음
+var MIN_INTERVAL = 3000;          // 폴더 확인 간격 (최소 3초)
+var RECENT_LIMIT = 50;
+var CAN_WATCH = typeof window.showDirectoryPicker === 'function';
+var FOLDER_SVG = '<svg class="i folder" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.6c.7 0 1.3.3 1.8.8L12.4 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>';
+
+// ===== 상태 =====
+var files = new Map();            // "폴더번호/경로" -> 파일 정보
+var roots = [];                   // 등록한 폴더 [{ id, name, handle, ok, scanned, error, isStatic }]
+var scanning = false, timer = null, firstScanDone = false;
+var tab = 'all', extFilter = '', query = '', current = null;
+var viewMode = 'rendered', hitIndex = 0;
+function $(id) { return document.getElementById(id); }
+
+// ===== 글자 처리 =====
+function nfc(s) { return s && s.normalize ? s.normalize('NFC') : s; }   // 맥에서 만든 한글(자모 분리)도 똑같이 검색되게
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function terms() { return nfc(query).trim().split(/\s+/).filter(Boolean); }
+function termRegex() { var t = terms(); return t.length ? new RegExp(t.map(escRe).join('|'), 'gi') : null; }
+
+// 인코딩 자동 판별: UTF-8(BOM 포함/미포함), UTF-16, 한글 윈도우(CP949/EUC-KR)
+function decode(buf) {
+  var b = new Uint8Array(buf);
+  if (b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return new TextDecoder('utf-8').decode(b.subarray(3));
+  if (b.length >= 2 && b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(b.subarray(2));
+  if (b.length >= 2 && b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(b.subarray(2));
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(b); }
+  catch (e) {
+    try { return new TextDecoder('euc-kr').decode(b); }      // 브라우저에서 euc-kr = CP949(확장 완성형 포함)
+    catch (e2) { return new TextDecoder('utf-8').decode(b); }
+  }
+}
+
+// HTML에서 화면에 보이는 글자만 뽑기 (스크립트는 실행되지 않음)
+function htmlToText(html) {
+  try {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,noscript,template').forEach(function (e) { e.remove(); });
+    var title = doc.title ? doc.title + '\n' : '';
+    return title + (doc.body ? doc.body.textContent : '').replace(/[ \t ]+/g, ' ').replace(/\n\s*\n+/g, '\n');
+  } catch (e) { return html; }
+}
+
+function fmtSize(n) {
+  if (n < 1024) return n + 'B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + 'KB';
+  return (n / 1048576).toFixed(1) + 'MB';
+}
+function fmtTime(ms) {
+  var d = new Date(ms), diff = (Date.now() - ms) / 1000;
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return Math.floor(diff / 60) + '분 전';
+  if (diff < 86400) return Math.floor(diff / 3600) + '시간 전';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '일 전';
+  return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+}
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function fmtFull(ms) {
+  var d = new Date(ms);
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function fmtClock(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+
+var toastTimer;
+function toast(msg) {
+  var t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 3500);
+}
+
+// ===== 폴더 목록 저장 (이 브라우저 안에 저장, 다음에 열어도 유지) =====
+function idb() {
+  return new Promise(function (res, rej) {
+    var r = indexedDB.open('docfinder', 1);
+    r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+    r.onsuccess = function () { res(r.result); };
+    r.onerror = function () { rej(r.error); };
+  });
+}
+async function saveRoots() {
+  try {
+    var db = await idb();
+    var keep = roots.filter(function (r) { return !r.isStatic; }).map(function (r) { return { id: r.id, handle: r.handle }; });
+    db.transaction('kv', 'readwrite').objectStore('kv').put(keep, 'roots');
+  } catch (e) { /* 저장이 막힌 환경이면 이번 실행 동안만 유지 */ }
+}
+async function loadRoots() {
+  try {
+    var db = await idb();
+    return await new Promise(function (res) {
+      var r = db.transaction('kv').objectStore('kv').get('roots');
+      r.onsuccess = function () { res(r.result || []); };
+      r.onerror = function () { res([]); };
+    });
+  } catch (e) { return []; }
+}
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ===== 폴더 추가 / 빼기 / 다시 연결 =====
+async function addFolder() {
+  if (!CAN_WATCH) { $('dirInput').value = ''; $('dirInput').click(); return; }
+  var h;
+  try { h = await window.showDirectoryPicker({ mode: 'read' }); }
+  catch (e) {
+    if (e.name === 'AbortError') return;
+    $('dirInput').value = ''; $('dirInput').click();   // 폴더 선택 창이 막힌 환경이면 예비 방식 사용
+    return;
+  }
+  for (var i = 0; i < roots.length; i++) {
+    try { if (roots[i].handle && await roots[i].handle.isSameEntry(h)) { toast('"' + nfc(h.name) + '" 폴더는 이미 목록에 있습니다.'); return; } } catch (e) {}
+  }
+  roots.push({ id: newId(), name: nfc(h.name), handle: h, ok: true, scanned: false });
+  await saveRoots();
+  renderRoots();
+  kick();
+}
+
+// 예비 방식: 크롬·엣지가 아닌 브라우저 (자동 확인 없이 한 번 읽기)
+async function loadStaticFolder(list) {
+  if (!list || !list.length) return;
+  var first = list[0].webkitRelativePath || list[0].name;
+  var rootName = nfc(first.split('/')[0] || '불러온 폴더');
+  var r = { id: newId(), name: rootName, handle: null, ok: true, scanned: true, isStatic: true };
+  roots.push(r);
+  renderRoots();
+  for (var i = 0; i < list.length; i++) {
+    var file = list[i];
+    var rel = nfc(file.webkitRelativePath || file.name);
+    var parts = rel.split('/'); parts.shift();
+    if (parts.some(function (p) { return SKIP_DIRS[p.toLowerCase()] || p.charAt(0) === '.'; })) continue;
+    var path = parts.join('/') || nfc(file.name);
+    var name = nfc(file.name);
+    var ext = EXT_GROUP[(name.split('.').pop() || '').toLowerCase()];
+    if (!ext || name.indexOf('.') < 0) continue;
+    await addFileInfo(r, path, name, ext, file, null, false);
+  }
+  firstScanDone = true;
+  renderRoots(); render();
+  if (!current) showWelcome();
+  toast('"' + rootName + '" 폴더를 불러왔습니다. (이 브라우저는 자동 확인을 지원하지 않습니다)');
+}
+
+async function removeFolder(id) {
+  var r = roots.find(function (x) { return x.id === id; }); if (!r) return;
+  roots = roots.filter(function (x) { return x.id !== id; });
+  Array.from(files.keys()).forEach(function (k) { if (k.indexOf(id + '/') === 0) files.delete(k); });
+  if (current && current.indexOf(id + '/') === 0) { current = null; $('vhead').hidden = true; }
+  await saveRoots();
+  renderRoots(); render();
+  if (!current) showWelcome();
+  toast('"' + r.name + '"을(를) 목록에서 뺐습니다. (실제 폴더는 그대로입니다)');
+}
+
+async function reconnect() {
+  // 브라우저 보안상 클릭 한 번에 폴더 하나씩만 권한을 받을 수 있음
+  var r = roots.find(function (x) { return !x.ok && !x.isStatic; }); if (!r) return;
+  try {
+    if (await r.handle.requestPermission({ mode: 'read' }) === 'granted') { r.ok = true; r.error = ''; }
+    else toast('"' + r.name + '" 폴더 읽기 권한이 필요합니다.');
+  } catch (e) { r.error = '연결 실패'; toast('"' + r.name + '"을(를) 다시 연결하지 못했습니다. 목록에서 빼고 새로 추가해 주세요.'); }
+  renderRoots(); kick();
+}
+function kick() { clearTimeout(timer); if (!scanning) loop(); else timer = setTimeout(kick, 300); }
+
+function renderRoots() {
+  var pending = roots.filter(function (r) { return !r.ok && !r.isStatic; });
+  $('reconnectBtn').hidden = !pending.length;
+  if (pending.length) $('reconnectBtn').textContent = '"' + pending[0].name + '" 다시 연결' + (pending.length > 1 ? ' (외 ' + (pending.length - 1) + '개)' : '');
+  var html = '<div class="rtitle">등록한 폴더 ' + roots.length + '개</div>';
+  if (!roots.length) html += '<div class="root off"><span class="rname">위의 [+ 폴더 추가]로 등록하세요</span></div>';
+  roots.forEach(function (r) {
+    var n = 0; files.forEach(function (f) { if (f.rootId === r.id) n++; });
+    html += '<div class="root' + (r.ok ? '' : ' off') + '" title="' + esc(r.name) + '">' + FOLDER_SVG + '<span class="rname">' + esc(r.name) + '</span>' +
+      (r.ok ? '<span class="rcnt">' + (r.scanned ? n + '개' + (r.isStatic ? ' (고정)' : '') : '읽는 중') + '</span>' : '<span class="rwarn">' + esc(r.error || '연결 필요') + '</span>') +
+      '<button data-remove="' + r.id + '" title="목록에서 빼기" aria-label="목록에서 빼기">&times;</button></div>';
+  });
+  $('roots').innerHTML = html;
+}
+
+function showWelcome() {
+  var tip = CAN_WATCH
+    ? '폴더는 3초마다 다시 확인해서 새 파일이 생기면 바로 표시합니다.'
+    : '<span class="warn">이 브라우저는 자동 확인을 지원하지 않아 폴더를 한 번만 불러옵니다. 크롬이나 엣지에서 열면 자동 확인이 됩니다.</span>';
+  $('vbody').innerHTML = roots.length
+    ? '<div class="welcome"><h2>폴더 ' + roots.length + '개 등록됨</h2>왼쪽에서 파일을 고르거나 위에서 검색하세요.<br>새로 생기는 파일은 <b>최근</b> 탭에 바로 모입니다.<br>' + tip + '</div>'
+    : '<div class="welcome"><h2>로컬 문서 탐색기</h2><b>[+ 폴더 추가]</b>로 보고 싶은 폴더를 등록하세요.<br>여러 개 등록할 수 있고, 목록은 저장되어 다음에도 유지됩니다.<br>MD · TXT · HTML 파일을 읽어 목록과 검색을 제공합니다.<br>파일 내용은 이 컴퓨터 안에서만 읽고, 어디로도 보내지 않습니다.<br>' + tip + '</div>';
+}
+
+// ===== 폴더 확인 (주기적으로 반복) =====
+async function walk(dir, prefix, out) {
+  for await (var entry of dir.entries()) {
+    var name = nfc(entry[0]), h = entry[1];
+    if (h.kind === 'directory') {
+      if (!SKIP_DIRS[name.toLowerCase()] && name.charAt(0) !== '.') await walk(h, prefix + name + '/', out);
+    } else {
+      var ext = EXT_GROUP[(name.split('.').pop() || '').toLowerCase()];
+      if (ext && name.indexOf('.') > 0) out.push({ path: prefix + name, name: name, ext: ext, handle: h });
+    }
+  }
+}
+
+async function addFileInfo(r, path, name, ext, file, handle, isNew) {
+  var key = r.id + '/' + path;
+  var old = files.get(key);
+  var text = null, searchText = '';
+  if (file.size <= MAX_READ) {
+    try {
+      text = nfc(decode(await file.arrayBuffer()));
+      searchText = ext === 'html' ? htmlToText(text) : text;
+    } catch (e) { text = null; }
+  }
+  var info = {
+    key: key, rootId: r.id, path: path, name: name, ext: ext, handle: handle,
+    folder: r.name + (path.indexOf('/') >= 0 ? '/' + path.slice(0, path.lastIndexOf('/')) : ''),
+    lastModified: file.lastModified, size: file.size, text: text, searchText: searchText,
+    lower: (name + '\n' + searchText).toLowerCase(),
+    isNew: old ? old.isNew : isNew, foundAt: old ? old.foundAt : Date.now()
+  };
+  files.set(key, info);
+  return { info: info, wasOld: !!old };
+}
+
+async function scan() {
+  var added = [], changed = [], removed = [], scannedRoots = {}, firstOf = [];
+  for (var i = 0; i < roots.length; i++) {
+    var r = roots[i];
+    if (!r.ok || r.isStatic) continue;
+    var part = [];
+    try { await walk(r.handle, '', part); }
+    catch (e) {
+      r.ok = false;
+      r.error = e.name === 'NotFoundError' ? '폴더 없음' : '연결 필요';
+      continue;
+    }
+    var seen = {};
+    for (var j = 0; j < part.length; j++) {
+      var f = part[j], key = r.id + '/' + f.path;
+      seen[key] = 1;
+      var file;
+      try { file = await f.handle.getFile(); } catch (e) { continue; }
+      var old = files.get(key);
+      if (old && old.lastModified === file.lastModified && old.size === file.size) continue;
+      // 새로 등록한 폴더의 첫 확인에서는 NEW 표시 안 함
+      var res = await addFileInfo(r, f.path, f.name, f.ext, file, f.handle, r.scanned);
+      if (res.wasOld) changed.push(res.info); else if (res.info.isNew) added.push(res.info);
+    }
+    files.forEach(function (info, k) { if (info.rootId === r.id && !seen[k]) { removed.push(k); files.delete(k); } });
+    scannedRoots[r.id] = 1;
+    if (!r.scanned) { r.scanned = true; firstOf.push(r); }
+  }
+  return { added: added, changed: changed, removed: removed, firstLoad: firstOf.length > 0 };
+}
+
+async function loop() {
+  if (scanning) return;
+  var live = roots.filter(function (r) { return r.ok && !r.isStatic; });
+  if (!live.length) {
+    setLive(false, roots.length ? (roots.some(function (r) { return r.isStatic; }) ? '불러온 폴더 (자동 확인 없음)' : '연결된 폴더 없음') : '폴더 없음');
+    return;
+  }
+  scanning = true;
+  var t0 = performance.now();
+  try {
+    var before = roots.map(function (x) { return x.ok; }).join();
+    var r = await scan();
+    var wasFirst = !firstScanDone;
+    firstScanDone = true;
+    setLive(true, '실시간 확인 중 (폴더 ' + roots.filter(function (x) { return x.ok && !x.isStatic; }).length + '개)');
+    if (wasFirst && !current) showWelcome();
+    if (r.added.length) toast('새 파일 ' + r.added.length + '개: ' + r.added.map(function (f) { return f.name; }).slice(0, 3).join(', '));
+    if (current && r.removed.indexOf(current) >= 0) {
+      current = null; $('vhead').hidden = true;
+      $('vbody').innerHTML = '<div class="welcome">열려 있던 파일이 삭제되었습니다.</div>';
+    } else if (current && r.changed.some(function (f) { return f.key === current; })) openFile(current, true);
+    if (wasFirst || r.firstLoad || r.added.length || r.changed.length || r.removed.length || before !== roots.map(function (x) { return x.ok; }).join()) { renderRoots(); render(); }
+  } catch (e) {
+    setLive(false, '확인 중 오류');
+  }
+  var took = performance.now() - t0;
+  $('lastScan').textContent = '마지막 확인 ' + fmtClock(new Date()) + ' (' + Math.round(took) + 'ms)';
+  scanning = false;
+  timer = setTimeout(loop, Math.max(MIN_INTERVAL, took * 3));
+}
+function setLive(on, text) {
+  $('liveState').className = on ? 'live' : '';
+  $('liveState').innerHTML = '<span class="dot"></span>' + esc(text);
+}
+
+// ===== 목록 그리기 =====
+function filtered() {
+  var arr = [];
+  files.forEach(function (f) { if (!extFilter || f.ext === extFilter) arr.push(f); });
+  return arr;
+}
+
+function itemHtml(f, extra) {
+  extra = extra || {};
+  return '<button class="item' + (f.key === current ? ' on' : '') + '" data-key="' + esc(f.key) + '">' +
+    '<span class="ext ' + f.ext + '">' + f.ext.toUpperCase() + '</span>' +
+    '<span class="name" title="' + esc(f.folder + '/' + f.name) + '">' + esc(f.name) + '</span>' +
+    (extra.hits ? '<span class="hits">' + extra.hits + '건</span>' : (f.isNew ? '<span class="badge">NEW</span>' : '<span></span>')) +
+    '<span class="meta">' + (extra.showFolder ? esc(f.folder) + ' · ' : '') + fmtTime(f.lastModified) + ' · ' + fmtSize(f.size) + '</span>' +
+    (extra.snip ? '<span class="snip">' + extra.snip + '</span>' : '') +
+    '</button>';
+}
+
+function markHtml(raw, re) {
+  if (!re) return esc(raw);
+  var out = '', last = 0, m; re.lastIndex = 0;
+  while ((m = re.exec(raw))) {
+    if (!m[0].length) { re.lastIndex++; continue; }
+    out += esc(raw.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  return out + esc(raw.slice(last));
+}
+
+function searchResults() {
+  var t = terms().map(function (s) { return s.toLowerCase(); }); if (!t.length) return [];
+  var re = termRegex(), res = [];
+  filtered().forEach(function (f) {
+    if (!t.every(function (w) { return f.lower.indexOf(w) >= 0; })) return;
+    var body = f.searchText || '';
+    re.lastIndex = 0;
+    var hits = 0, first = -1, m;
+    while ((m = re.exec(body)) && hits < 999) { if (first < 0) first = m.index; hits++; }
+    var snip;
+    if (first >= 0) {
+      var s = Math.max(0, first - 40), e = Math.min(body.length, first + 90);
+      snip = (s > 0 ? '...' : '') + markHtml(body.slice(s, e).replace(/\s+/g, ' '), re) + (e < body.length ? '...' : '');
+    } else snip = '파일 이름에서 찾음';
+    var nameHit = t.some(function (w) { return f.name.toLowerCase().indexOf(w) >= 0; }) ? 1000 : 0;
+    res.push({ f: f, hits: hits, snip: snip, score: nameHit + hits });
+  });
+  return res.sort(function (a, b) { return b.score - a.score || b.f.lastModified - a.f.lastModified; });
+}
+
+function count(ext) { var n = 0; files.forEach(function (f) { if (f.ext === ext) n++; }); return n; }
+
+function render() {
+  var list = filtered();
+  var newCount = 0; files.forEach(function (f) { if (f.isNew) newCount++; });
+  var hasQuery = !!query.trim();
+  var results = hasQuery ? searchResults() : [];
+  $('cntAll').textContent = list.length;
+  $('cntRecent').textContent = newCount ? '+' + newCount : '';
+  $('cntSearch').textContent = hasQuery ? results.length : '';
+  document.title = (newCount ? '(' + newCount + ') ' : '') + '로컬 문서 탐색기';
+  $('stat').textContent = '파일 ' + files.size + '개 (MD ' + count('md') + ' · TXT ' + count('txt') + ' · HTML ' + count('html') + ')';
+
+  var html = '';
+  if (!roots.length) html = '<div class="empty">위의 <b>[+ 폴더 추가]</b>를 눌러 시작하세요.</div>';
+  else if (tab === 'all') {
+    var order = {}; roots.forEach(function (r, i) { order[r.id] = i; });
+    // 같은 폴더끼리 묶이도록: 등록 순서 → 폴더(최상위 먼저) → 파일 이름
+    list.sort(function (a, b) {
+      var da = a.folder === roots[order[a.rootId]].name ? '' : a.folder, db = b.folder === roots[order[b.rootId]].name ? '' : b.folder;
+      return (order[a.rootId] - order[b.rootId]) || (da === db ? 0 : (da === '' ? -1 : (db === '' ? 1 : da.localeCompare(db, 'ko')))) || a.name.localeCompare(b.name, 'ko');
+    });
+    var lastFolder = null;
+    list.forEach(function (f) {
+      if (f.folder !== lastFolder) { html += '<div class="group">' + FOLDER_SVG + esc(f.folder) + '</div>'; lastFolder = f.folder; }
+      html += itemHtml(f);
+    });
+    if (!list.length) html = '<div class="empty">' + (firstScanDone ? 'MD, TXT, HTML 파일이 없습니다.' : '읽는 중...') + '</div>';
+  } else if (tab === 'recent') {
+    var fresh = list.filter(function (f) { return f.isNew; }).sort(function (a, b) { return b.foundAt - a.foundAt; });
+    if (fresh.length) {
+      html += '<div class="group">새로 생긴 파일 (이 창을 연 뒤) <button class="chip" id="clearNew" style="margin-left:auto">모두 확인</button></div>';
+      html += fresh.map(function (f) { return itemHtml(f, { showFolder: true }); }).join('');
+    }
+    var recent = list.filter(function (f) { return !f.isNew; }).sort(function (a, b) { return b.lastModified - a.lastModified; }).slice(0, RECENT_LIMIT);
+    html += '<div class="group">최근 수정순 ' + recent.length + '개</div>';
+    html += recent.map(function (f) { return itemHtml(f, { showFolder: true }); }).join('');
+  } else {
+    if (!hasQuery) html = '<div class="empty">위 검색창에 찾을 단어를 입력하세요.<br>띄어쓰기로 여러 단어를 넣으면 모두 들어간 파일만 찾습니다.</div>';
+    else if (!results.length) html = '<div class="empty">"' + esc(query.trim()) + '" 검색 결과가 없습니다.</div>';
+    else html = results.map(function (r) { return itemHtml(r.f, { showFolder: true, hits: r.hits, snip: r.snip }); }).join('');
+  }
+  $('list').innerHTML = html;
+}
+
+// ===== 마크다운 표시 (원문 속 HTML 태그는 글자로만 표시해서 안전) =====
+function inline(s) {
+  s = esc(s);
+  var codes = [];
+  s = s.replace(/`([^`]+)`/g, function (m, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, function (m, alt, url) { return '<span class="img">이미지: ' + (alt || url) + '</span>'; });
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, function (m, t, u) {
+    return /^(https?:|mailto:)/i.test(u) ? '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>' : t;
+  });
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<"]+)/g, function (m, p, u) { return p + '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + '</a>'; });
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  s = s.replace(/\u0000(\d+)\u0000/g, function (m, n) { return '<code>' + codes[n] + '</code>'; });
+  return s;
+}
+
+function renderMarkdown(src) {
+  var lines = src.replace(/\r\n?/g, '\n').split('\n');
+  var listRe = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+  var tableSep = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+  var html = '', i = 0, m;
+  function cells(l) { return l.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return inline(c.trim()); }); }
+
+  while (i < lines.length) {
+    var line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    if ((m = line.match(/^\s*(```|~~~)(.*)$/))) {
+      var fence = m[1], buf = []; i++;
+      while (i < lines.length && lines[i].trim().indexOf(fence) !== 0) buf.push(lines[i++]);
+      i++;
+      html += '<pre><code>' + esc(buf.join('\n')) + '</code></pre>';
+      continue;
+    }
+    if ((m = line.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/))) { var n = m[1].length; html += '<h' + n + '>' + inline(m[2]) + '</h' + n + '>'; i++; continue; }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { html += '<hr>'; i++; continue; }
+    if (/^\s*>/.test(line)) {
+      var q = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) q.push(lines[i++].replace(/^\s*>\s?/, ''));
+      html += '<blockquote>' + renderMarkdown(q.join('\n')) + '</blockquote>';
+      continue;
+    }
+    if (line.indexOf('|') >= 0 && i + 1 < lines.length && tableSep.test(lines[i + 1])) {
+      html += '<table><thead><tr>' + cells(line).map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && lines[i].indexOf('|') >= 0 && lines[i].trim()) {
+        html += '<tr>' + cells(lines[i]).map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; i++;
+      }
+      html += '</tbody></table>';
+      continue;
+    }
+    if (listRe.test(line)) {
+      var stack = [];
+      while (i < lines.length) {
+        var l = lines[i], lm = l.match(listRe);
+        if (!lm) {
+          if (!l.trim()) { if (i + 1 < lines.length && listRe.test(lines[i + 1])) { i++; continue; } break; }
+          if (/^\s{2,}/.test(l) && stack.length) { html += '<br>' + inline(l.trim()); i++; continue; }
+          break;
+        }
+        var indent = lm[1].replace(/\t/g, '    ').length, tag = /\d/.test(lm[2]) ? 'ol' : 'ul';
+        while (stack.length && indent < stack[stack.length - 1].indent) html += '</li></' + stack.pop().tag + '>';
+        var top = stack[stack.length - 1];
+        if (!top || indent > top.indent) { stack.push({ indent: indent, tag: tag }); html += '<' + tag + '>'; }
+        else html += '</li>';
+        var task = lm[3].match(/^\[([ xX])\]\s+(.*)$/);
+        html += '<li>' + (task ? '<input type="checkbox" disabled' + (task[1] !== ' ' ? ' checked' : '') + '>' + inline(task[2]) : inline(lm[3]));
+        i++;
+      }
+      while (stack.length) html += '</li></' + stack.pop().tag + '>';
+      continue;
+    }
+    var para = [];
+    while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|\s*```|\s*~~~|\s*>)/.test(lines[i]) && !listRe.test(lines[i])) para.push(inline(lines[i++]));
+    if (!para.length) { html += '<p>' + inline(lines[i++]) + '</p>'; continue; }
+    html += '<p>' + para.join('<br>') + '</p>';
+  }
+  return html;
+}
+
+// 화면에 표시된 글자에서 검색어 강조
+function highlight(el) {
+  var re = termRegex(); if (!re) return 0;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  var total = 0;
+  for (var k = 0; k < nodes.length && total <= 3000; k++) {
+    var node = nodes[k], text = node.nodeValue;
+    re.lastIndex = 0;
+    if (!re.test(text)) continue;
+    re.lastIndex = 0;
+    var frag = document.createDocumentFragment(), last = 0, m;
+    while ((m = re.exec(text))) {
+      if (!m[0].length) { re.lastIndex++; continue; }
+      frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var mk = document.createElement('mark'); mk.textContent = m[0]; frag.appendChild(mk);
+      last = m.index + m[0].length; total++;
+    }
+    frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+  return total;
+}
+
+// ===== 파일 보기 =====
+function openFile(key, keepScroll) {
+  var f = files.get(key); if (!f) return;
+  var body = $('vbody');
+  var scroll = keepScroll ? body.scrollTop : 0;
+  if (current !== key) viewMode = 'rendered';
+  current = key;
+  if (f.isNew) { f.isNew = false; render(); }
+  else document.querySelectorAll('.item').forEach(function (b) { b.classList.toggle('on', b.dataset.key === key); });
+
+  $('vhead').hidden = false;
+  $('vExt').className = 'ext ' + f.ext; $('vExt').textContent = f.ext.toUpperCase();
+  $('vTitle').textContent = f.name;
+  $('vInfo').textContent = f.folder + ' · 수정 ' + fmtFull(f.lastModified) + ' · ' + fmtSize(f.size);
+  var canToggle = f.ext !== 'txt' && f.text != null;
+  $('modeBtn').hidden = !canToggle;
+  $('modeBtn').textContent = viewMode === 'rendered' ? '원문 보기' : (f.ext === 'html' ? '화면으로 보기' : '꾸며서 보기');
+
+  body.innerHTML = '';
+  if (f.text == null) {
+    body.innerHTML = '<div class="welcome warn">파일이 너무 커서(' + fmtSize(f.size) + ') 미리보기를 생략했습니다.</div>';
+    setHits(0); return;
+  }
+  if (f.ext === 'html' && viewMode === 'rendered') {
+    var fr = document.createElement('iframe');
+    fr.setAttribute('sandbox', '');               // 스크립트·양식·팝업 실행 차단
+    fr.setAttribute('referrerpolicy', 'no-referrer');
+    // 원본에 글자 인코딩 선언이 없어도 깨지지 않게 UTF-8 선언을 앞에 붙임
+    fr.srcdoc = '<meta charset="utf-8">' + f.text;
+    body.appendChild(fr);
+    setHits(query.trim() ? -1 : 0);
+    return;
+  }
+  var el;
+  if (f.ext === 'md' && viewMode === 'rendered') { el = document.createElement('div'); el.className = 'md'; el.innerHTML = renderMarkdown(f.text); }
+  else { el = document.createElement('pre'); el.className = 'plain'; el.textContent = f.text; }
+  body.appendChild(el);
+  var n = highlight(el);
+  setHits(n);
+  if (keepScroll) body.scrollTop = scroll;
+  else if (n) { hitIndex = -1; goHit(1); }
+}
+
+function setHits(n) {
+  hitIndex = 0;
+  $('vHits').textContent = n > 0 ? n + '곳 찾음' : (n < 0 ? 'HTML 화면에서는 강조 안 됨 · [원문 보기]에서 확인' : '');
+  $('prevHit').hidden = $('nextHit').hidden = !(n > 1);
+}
+function goHit(delta) {
+  var marks = $('vbody').querySelectorAll('mark'); if (!marks.length) return;
+  marks.forEach(function (m) { m.classList.remove('cur'); });
+  hitIndex = (hitIndex + delta + marks.length) % marks.length;
+  var m = marks[hitIndex]; m.classList.add('cur');
+  m.scrollIntoView({ block: 'center' });
+  $('vHits').textContent = (hitIndex + 1) + ' / ' + marks.length + '곳';
+}
+
+// ===== 이벤트 =====
+$('pickBtn').onclick = addFolder;
+$('reconnectBtn').onclick = reconnect;
+$('dirInput').addEventListener('change', function () { loadStaticFolder(this.files); });
+document.addEventListener('click', function (e) {
+  var rm = e.target.closest('[data-remove]'); if (rm) { removeFolder(rm.dataset.remove); return; }
+  if (e.target.id === 'clearNew') { e.stopPropagation(); files.forEach(function (f) { f.isNew = false; }); render(); return; }
+  var it = e.target.closest('.item'); if (it) openFile(it.dataset.key);
+});
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.onclick = function () {
+    tab = t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x === t); });
+    render();
+  };
+});
+document.querySelectorAll('.chip[data-ext]').forEach(function (c) {
+  c.onclick = function () {
+    extFilter = c.dataset.ext;
+    document.querySelectorAll('.chip[data-ext]').forEach(function (x) { x.classList.toggle('on', x === c); });
+    render();
+  };
+});
+var qTimer;
+function applySearch() {
+  query = $('q').value;
+  if (query.trim() && tab !== 'search') {
+    tab = 'search';
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x.dataset.tab === 'search'); });
+  }
+  render();
+  if (current) openFile(current);
+}
+$('q').addEventListener('input', function () { clearTimeout(qTimer); qTimer = setTimeout(applySearch, 250); });
+$('q').addEventListener('compositionend', function () { clearTimeout(qTimer); qTimer = setTimeout(applySearch, 150); });
+$('q').addEventListener('keydown', function (e) {
+  if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 엔터는 무시 (두 번 실행 방지)
+  if (e.key === 'Enter') { clearTimeout(qTimer); applySearch(); var first = document.querySelector('.item'); if (first) openFile(first.dataset.key); }
+  if (e.key === 'Escape') { $('q').value = ''; applySearch(); }
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === '/' && document.activeElement !== $('q')) { e.preventDefault(); $('q').focus(); $('q').select(); }
+  if (e.key === 'F3') { e.preventDefault(); goHit(e.shiftKey ? -1 : 1); }
+});
+$('prevHit').onclick = function () { goHit(-1); };
+$('nextHit').onclick = function () { goHit(1); };
+$('modeBtn').onclick = function () { viewMode = viewMode === 'rendered' ? 'source' : 'rendered'; openFile(current); };
+setInterval(function () { if (files.size && tab !== 'search') render(); }, 60000);   // "몇 분 전" 표시 갱신
+
+// ===== 시작 =====
+(async function init() {
+  if (!CAN_WATCH) $('pickBtn').textContent = '+ 폴더 불러오기';
+  var saved = CAN_WATCH ? await loadRoots() : [];
+  for (var i = 0; i < saved.length; i++) {
+    var s = saved[i];
+    if (!s || !s.handle) continue;
+    var ok = false;
+    try { ok = await s.handle.queryPermission({ mode: 'read' }) === 'granted'; } catch (e) {}
+    roots.push({ id: s.id, name: nfc(s.handle.name), handle: s.handle, ok: ok, scanned: false });
+  }
+  showWelcome();
+  renderRoots(); render();
+  loop();
+})();
+</script>
+</body>
+</html>
