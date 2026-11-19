@@ -46,33 +46,44 @@ button { font: inherit; color: inherit; cursor: pointer; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 svg.i { width: 15px; height: 15px; vertical-align: -2px; flex: none; }
 svg.folder { color: var(--folder); }
+[hidden] { display: none !important; }
 header {
-  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
-  background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); flex-wrap: wrap;
 }
-header h1 { font-size: 16px; margin: 0 8px 0 0; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-header h1 svg { width: 20px; height: 20px; }
-.btn {
-  border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
-  padding: 6px 12px; white-space: nowrap;
-}
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn:disabled { opacity: .5; cursor: default; }
-.search { flex: 1; min-width: 220px; position: relative; display: block; }
+.search { flex: 1; min-width: 220px; max-width: 620px; position: relative; display: block; }
 .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .search input {
   width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--bg); color: var(--text); font: inherit; outline: none;
 }
 .search input:focus { border-color: var(--accent); background: var(--panel); }
+.qhist {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; padding: 4px 0 6px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: 560px;
+}
+.qhist .hhead { display: flex; align-items: center; padding: 4px 12px; font-size: 12px; color: var(--muted); font-weight: 700; }
+.qhist .hhead button { margin-left: auto; border: 0; background: none; color: var(--muted); font-size: 12px; font-weight: 400; }
+.qhist .hhead button:hover { color: var(--danger); }
+.qhist .hitem { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 12px 6px 34px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qhist .hitem:hover, .qhist .hitem.on { background: var(--accent-soft); color: var(--accent); }
 main { flex: 1; display: flex; min-height: 0; }
 aside {
-  width: 360px; min-width: 260px; background: var(--panel); border-right: 1px solid var(--line);
+  width: 270px; min-width: 230px; background: var(--panel); border-right: 1px solid var(--line);
   display: flex; flex-direction: column; min-height: 0;
 }
-.roots { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; max-height: 30vh; overflow: auto; }
-.roots .rtitle { font-size: 12px; color: var(--muted); font-weight: 700; padding: 0 4px 2px; }
+.roots { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; max-height: 30vh; overflow: auto; scrollbar-gutter: stable; }
+/* 접는 칸 제목 (등록한 폴더 / 종류) */
+.rtitle { display: flex; align-items: center; gap: 4px; border: 0; background: none; text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; padding: 2px 4px; border-radius: 6px; }
+.rtitle:hover { color: var(--text); background: var(--bg); }
+.rtitle .rwarn { font-weight: 400; margin-left: 4px; }
+.rtitle .fsum { font-weight: 400; margin-left: 4px; color: var(--accent); }
+.roots.folded { padding-bottom: 6px; }
+svg.fold { width: 14px; height: 14px; transition: transform .15s; }
+svg.fold.shut { transform: rotate(-90deg); }
 .root { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 8px; border-radius: 6px; background: var(--bg); font-size: 13px; }
 .root .rname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .root .rcnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
@@ -89,45 +100,86 @@ aside {
 }
 .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 .tab .cnt { font-weight: 400; font-size: 12px; margin-left: 3px; }
-.filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px 8px; border-bottom: 1px solid var(--line); }
+.filters .rtitle { flex-basis: 100%; }
+.filters.folded { padding-bottom: 6px; }
+.filters.folded .chip { display: none; }
 .chip {
   border: 1px solid var(--line); background: none; border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted);
 }
 .chip.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-.list { flex: 1; overflow: auto; padding: 4px 0 12px; }
+.chip .ccount { font-size: 11px; opacity: .75; }
+.chip.zero:not(.on) { opacity: .45; }
+.empty .chip { margin-top: 10px; color: var(--accent); border-color: var(--accent); }
+/* 왼쪽 파일 목록 */
+.list { flex: 1; overflow: auto; padding: 0 0 12px; scrollbar-gutter: stable; }   /* 스크롤바 자리를 미리 비워 둬서 생겨도 단추·개수가 밀리지 않게 */
 .group { display: flex; align-items: center; gap: 6px; padding: 10px 14px 4px; font-size: 12px; color: var(--muted); font-weight: 700; word-break: break-all; }
+.group.gtoggle { width: 100%; border: 0; background: none; text-align: left; padding: 8px 14px 4px 8px; }
+.group.gtoggle:hover { color: var(--text); }
+.group .gname { flex: 1; }
+.group .gcnt { font-weight: 400; font-size: 11px; }
+/* 목록 위 작은 아이콘 단추 + [제외] 창 */
+.gbar {   /* 목록을 내려도 위에 붙어 있게 */
+  position: sticky; top: 0; z-index: 2; background: var(--panel);
+  display: flex; justify-content: flex-end; gap: 2px; padding: 4px 10px;
+}
+.gbar button { width: 26px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--muted); border-radius: 6px; }
+.gbar button:hover { background: var(--bg); color: var(--text); }
+.gbar svg { width: 16px; height: 16px; }
+.gbar .xbtn.on { color: var(--danger); }
+.xpop {
+  position: fixed; z-index: 40; width: 240px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35); padding: 12px 14px; font-size: 12.5px;
+}
+.xpop h4 { display: flex; align-items: center; margin: 0 0 6px; font-size: 12.5px; }
+.xpop .xall { margin-left: auto; border: 1px solid var(--line); background: none; border-radius: 6px; padding: 1px 8px; font-size: 11px; color: var(--accent); }
+.xpop .xall:hover { border-color: var(--accent); }
+.xpop label { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+.xpop input { accent-color: var(--danger); margin: 0; }
+.xpop .xnote { font-size: 11px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); line-height: 1.6; }
 .item {
   display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center;
   width: 100%; text-align: left; border: 0; background: none; padding: 7px 14px; border-left: 3px solid transparent;
 }
 .item:hover { background: var(--bg); }
 .item.on { background: var(--accent-soft); border-left-color: var(--accent); }
+.item:focus { outline: none; }
+.item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item .meta { grid-column: 2 / 4; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { grid-column: 2 / 4; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .snip { grid-column: 1 / 4; font-size: 12px; color: var(--muted); line-height: 1.5; word-break: break-all; }
-.ext { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; color: #fff; letter-spacing: .3px; font-family: Arial, sans-serif; }
+.ext {   /* 종류 배지: 글자 수와 상관없이 같은 크기 */
+  display: inline-block; width: 40px; padding: 1px 0; text-align: center; line-height: 1.5;
+  font-size: 10px; font-weight: 700; border-radius: 4px; color: #fff; letter-spacing: .3px; font-family: Arial, sans-serif; opacity: .85;
+}
 .ext.md { background: var(--md); } .ext.txt { background: var(--txt); } .ext.html { background: var(--html); }
 .ext.xlsx { background: var(--xlsx); } .ext.pptx { background: var(--pptx); } .ext.docx { background: var(--docx); }
+.lock { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--danger); }   /* 문서보안(DRM)=빨강, 열기 암호=노랑 */
+.lock svg { width: 13px; height: 13px; }
+.lock.password { color: var(--folder); }
+.lock.big { margin: 0 auto 6px; }
+.lock.big svg { width: 44px; height: 44px; }
 .badge { font-size: 10px; font-weight: 700; color: var(--new); background: var(--new-soft); border-radius: 4px; padding: 1px 6px; font-family: Arial, sans-serif; }
 .hits { font-size: 11px; color: var(--accent); white-space: nowrap; }
 .empty { padding: 30px 20px; color: var(--muted); text-align: center; line-height: 1.8; }
 mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
 mark.cur { outline: 2px solid var(--accent); }
 section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.vhead {
-  display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: var(--panel);
-  border-bottom: 1px solid var(--line); flex-wrap: wrap;
-}
-.vhead[hidden] { display: none; }
+/* 문서 화면: 가운데 종이 한 장처럼 */
+.vhead { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 18px 0; flex-wrap: wrap; }
 .vhead .vtitle { font-weight: 700; font-size: 15px; word-break: break-all; }
 .vhead .info { color: var(--muted); font-size: 12px; }
-.vhead .spacer { flex: 1; }
-.vbody { flex: 1; overflow: auto; padding: 22px 28px 60px; }
+.vhead .crumb { font-size: 12px; color: var(--accent); word-break: break-all; }
+.vbody { flex: 1; overflow: auto; padding: 16px 24px 60px; outline: none; }
+.vbody > .md, .vbody > pre.plain, .vbody > .office {
+  max-width: 780px; margin: 0 auto; background: var(--panel); padding: 44px 56px;
+  border-radius: 6px; box-shadow: 0 2px 14px rgba(0,0,0,.18);
+}
+.vbody > .office { max-width: 1000px; }
 .vbody pre.plain { white-space: pre-wrap; word-break: break-word; margin: 0; font: 13.5px/1.65 Consolas, "D2Coding", "Malgun Gothic", monospace; }
 .vbody iframe { width: 100%; height: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-.md { max-width: 860px; }
-.md h1, .md h2 { border-bottom: 1px solid var(--line); padding-bottom: .3em; }
-.md h1 { font-size: 1.8em; } .md h2 { font-size: 1.45em; } .md h3 { font-size: 1.2em; }
+.vbody .md { font-size: 15.5px; line-height: 1.95; }   /* 파일 종류 배지(.ext.md)와 구분 */
+.md h1 { font-size: 1.7em; margin-top: 0; } .md h2 { font-size: 1.45em; } .md h3 { font-size: 1.2em; }
 .md code { background: var(--code); padding: .1em .35em; border-radius: 4px; font-family: Consolas, "D2Coding", monospace; font-size: .92em; }
 .md pre { background: var(--code); padding: 12px 14px; border-radius: 8px; overflow: auto; }
 .md pre code { background: none; padding: 0; }
@@ -139,7 +191,6 @@ section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; m
 .md hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
 .md .img { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); padding: 1px 6px; border-radius: 4px; }
 .md li > input { margin-right: 6px; }
-.office { max-width: 1100px; }
 .office .otitle { font-weight: 700; font-size: 15px; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
 .office .otitle:first-child, .office .slide .otitle { margin-top: 0; }
 .office p { margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
@@ -152,36 +203,49 @@ section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; m
 .office .onote { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .office .omuted, .welcome .omuted { color: var(--muted); font-size: 12px; }
 footer {
-  display: flex; gap: 14px; padding: 5px 16px; background: var(--panel); border-top: 1px solid var(--line);
+  display: flex; gap: 14px; padding: 5px 16px; border-top: 1px solid var(--line);
   font-size: 12px; color: var(--muted); flex-wrap: wrap; align-items: center;
 }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
 .live .dot { background: var(--new); }
+.paused .dot { background: var(--danger); }
+#liveState.live, #liveState.paused { cursor: pointer; }
+#liveState.live:hover, #liveState.paused:hover { color: var(--text); }
 .toast {
   position: fixed; right: 18px; bottom: 40px; background: var(--text); color: var(--panel);
   padding: 10px 16px; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25);
   opacity: 0; transform: translateY(10px); transition: .25s; pointer-events: none; max-width: 360px;
 }
 .toast.show { opacity: 1; transform: none; }
+.notice {
+  position: fixed; left: 16px; top: 58px; z-index: 20; width: 420px; max-width: calc(100vw - 32px);
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: 13px; line-height: 1.7;
+}
+.notice p { margin: 6px 0; }
+.notice ul { margin: 4px 0 10px; padding-left: 18px; color: var(--muted); }
+.notice .nbtns { display: flex; gap: 8px; justify-content: flex-end; }
 .welcome { max-width: 580px; margin: 8vh auto; text-align: center; color: var(--muted); line-height: 1.9; }
 .welcome h2 { color: var(--text); }
+.lockview { line-height: 1.8; }
 .warn { color: var(--danger); }
 @media (max-width: 760px) {
   main { flex-direction: column; }
   aside { width: 100%; height: 45vh; border-right: 0; border-bottom: 1px solid var(--line); }
-  .vbody { padding: 16px; }
+  .vbody { padding: 12px; }
+  .vbody > .md, .vbody > pre.plain, .vbody > .office { padding: 20px 18px; }
 }
 </style>
 </head>
 <body>
 <header>
   <button class="btn primary" id="pickBtn" title="폴더를 등록하고 3초마다 자동 확인">+ 폴더 추가</button>
-  <button class="btn" id="onceBtn" title="다운로드처럼 크롬이 막는 폴더용. 하위 폴더까지 읽고, 새 파일은 [새로 고침]으로 반영">한 번 불러오기</button>
   <button class="btn" id="reconnectBtn" hidden>다시 연결</button>
   <input type="file" id="dirInput" webkitdirectory multiple hidden>
   <label class="search">
     <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
     <input id="q" type="search" placeholder="파일 이름과 내용 검색 (띄어쓰기 = 모두 포함) · 단축키 /" autocomplete="off" spellcheck="false">
+    <div class="qhist" id="qHist" hidden></div>
   </label>
 </header>
 <main>
@@ -192,7 +256,8 @@ footer {
       <button class="tab" data-tab="recent">최근<span class="cnt" id="cntRecent"></span></button>
       <button class="tab" data-tab="search">검색<span class="cnt" id="cntSearch"></span></button>
     </div>
-    <div class="filters">
+    <div class="filters" id="filters">
+      <button class="rtitle" id="filtersToggle"></button>
       <button class="chip on" data-ext="">전체</button>
       <button class="chip" data-ext="md">MD</button>
       <button class="chip" data-ext="txt">TXT</button>
@@ -205,16 +270,17 @@ footer {
   </aside>
   <section class="viewer">
     <div class="vhead" id="vhead" hidden>
+      <button class="btn" id="backBtn" hidden title="링크로 들어오기 전 파일로 (Alt+←)">&larr; 뒤로</button>
       <span class="ext" id="vExt"></span>
       <span class="vtitle" id="vTitle"></span>
       <span class="info" id="vInfo"></span>
-      <span class="spacer"></span>
+      <span class="crumb" id="vCrumb" hidden></span>
       <span class="info" id="vHits"></span>
       <button class="btn" id="prevHit" hidden title="이전 (Shift+F3)">이전</button>
       <button class="btn" id="nextHit" hidden title="다음 (F3)">다음</button>
       <button class="btn" id="modeBtn" hidden></button>
     </div>
-    <div class="vbody" id="vbody"></div>
+    <div class="vbody" id="vbody" tabindex="-1"></div>
   </section>
 </main>
 <footer>
@@ -223,6 +289,18 @@ footer {
   <span id="lastScan"></span>
 </footer>
 <div class="toast" id="toast"></div>
+<div class="xpop" id="exPop" hidden></div>
+<div class="notice" id="blockHelp" hidden>
+  <b>폴더가 추가되지 않았나요?</b>
+  <p>다운로드처럼 크롬이 <b>"시스템 파일이 포함되어 있다"</b>며 막는 폴더는 아래 방법으로 추가할 수 있습니다.</p>
+  <ul>
+    <li>하위 폴더까지 모두 읽고 검색됩니다.</li>
+    <li>새 파일은 자동으로 잡히지 않아, 폴더 옆 <b>[새로 고침]</b>을 눌러 반영합니다.</li>
+    <li>크롬이 "업로드할까요?"라고 물어도 실제로는 어디에도 보내지 않고 이 화면에서만 읽습니다.</li>
+    <li>창을 닫았다 열면 다시 추가해야 합니다.</li>
+  </ul>
+  <div class="nbtns"><button class="btn primary" id="helpOnce">이 방법으로 폴더 추가</button><button class="btn" id="helpClose">닫기</button></div>
+</div>
 
 <script>
 'use strict';
@@ -237,7 +315,17 @@ var MAX_READ = 5 * 1024 * 1024;   // 5MB 넘는 파일은 내용을 읽지 않�
 var MIN_INTERVAL = 3000;          // 폴더 확인 간격 (최소 3초)
 var RECENT_LIMIT = 50;
 var CAN_WATCH = typeof window.showDirectoryPicker === 'function';
+var STORE_KEY = { rootsFolded: 'docfinder.rootsFolded', filtersFolded: 'docfinder.filtersFolded', excluded: 'docfinder.excluded' };   // 이 브라우저에 기억하는 설정 이름
+
+// ===== 아이콘 (모두 HTML 안에 직접 그림, 외부 파일 없음) =====
+var LINE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
 var FOLDER_SVG = '<svg class="i folder" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.6c.7 0 1.3.3 1.8.8L12.4 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>';
+var CHEVRON = '<svg class="i fold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+var LOCK_SVG = LINE_SVG + '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+var ICON_FUNNEL = LINE_SVG + '<path d="M4 5h16l-6 7.5V19l-4-2v-4.5z"/><path d="M3 3l18 18"/></svg>';   // [제외]
+var ICON_FOLDER_SHUT = LINE_SVG + '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2h9A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>';   // [모두 접기]
+var ICON_FOLDER_OPEN = LINE_SVG + '<path d="M3 17.5V7.5A1.5 1.5 0 0 1 4.5 6h4l2 2h7A1.5 1.5 0 0 1 19 9.5V11"/><path d="M3 17.5l2.6-5.7A1.5 1.5 0 0 1 7 11h13.2a.8.8 0 0 1 .7 1.1l-2.4 5.9a1.5 1.5 0 0 1-1.4 1H4.5A1.5 1.5 0 0 1 3 17.5z"/></svg>';   // [모두 펼치기]
+function chevron(shut) { return shut ? CHEVRON.replace('i fold', 'i fold shut') : CHEVRON; }
 
 // ===== 상태 =====
 var files = new Map();            // "폴더번호/경로" -> 파일 정보
@@ -323,7 +411,7 @@ async function zipXml(z, path) {
   var doc = new DOMParser().parseFromString(t, 'application/xml');
   return doc.getElementsByTagName('parsererror').length ? null : doc;
 }
-function els(node, name) { return node ? Array.prototype.slice.call(node.getElementsByTagNameNS('*', name)) : []; }
+function els(node, name) { return node ? Array.from(node.getElementsByTagNameNS('*', name)) : []; }
 function kids(node, name) {
   var out = []; if (!node) return out;
   for (var c = node.firstElementChild; c; c = c.nextElementSibling) if (!name || c.localName === name) out.push(c);
@@ -584,8 +672,22 @@ async function readDocx(z) {
   return { html: html, text: text.join('\n') };
 }
 
+// 바이트 안에 UTF-16 글자가 있는지 찾기 (오피스 열기 암호 파일 구분용)
+function hasUtf16(b, word) {
+  var pat = []; for (var i = 0; i < word.length; i++) pat.push(word.charCodeAt(i) & 255, word.charCodeAt(i) >> 8);
+  outer: for (var p = 0; p <= b.length - pat.length; p++) {
+    if (b[p] !== pat[0]) continue;
+    for (var q = 1; q < pat.length; q++) if (b[p + q] !== pat[q]) continue outer;
+    return true;
+  }
+  return false;
+}
 async function readOffice(buf, ext) {
   if (!CAN_OFFICE) throw new Error('old');
+  var head = new Uint8Array(buf);
+  // 정상 파일은 ZIP(PK)로 시작. 오피스 열기 암호 파일은 옛 오피스 형식(D0 CF 11 E0) 안에 EncryptedPackage가 들어 있음
+  if (head.length >= 4 && head[0] === 0xD0 && head[1] === 0xCF && head[2] === 0x11 && head[3] === 0xE0) throw new Error(hasUtf16(head, 'EncryptedPackage') ? 'password' : 'drm');
+  if (!(head.length >= 2 && head[0] === 0x50 && head[1] === 0x4B)) throw new Error('drm');   // ZIP이 아니면 문서보안(DRM) 등으로 감싼 파일
   var z = zipEntries(buf);
   var r = ext === 'xlsx' ? await readXlsx(z) : ext === 'pptx' ? await readPptx(z) : await readDocx(z);
   if (r.text.length > OFFICE_TEXT_LIMIT) r.text = r.text.slice(0, OFFICE_TEXT_LIMIT);
@@ -594,7 +696,8 @@ async function readOffice(buf, ext) {
 function officeError(e) {
   var m = e && e.message;
   if (m === 'old') return '이 브라우저는 엑셀·PPT·워드 읽기를 지원하지 않습니다. 크롬이나 엣지에서 열어 주세요.';
-  if (m === 'notzip' || m === 'locked') return '암호가 걸렸거나 손상된 파일이라 읽을 수 없습니다.';
+  if (m === 'password' || m === 'locked') return '열기 암호가 걸린 파일입니다. 오피스에서 암호를 입력해 열어 주세요. (파일 이름으로는 검색됩니다)';
+  if (m === 'drm' || m === 'notzip') return '문서보안(DRM)이 걸렸거나 손상된 파일이라 내용을 읽을 수 없습니다. 회사 보안 프로그램이 설치된 오피스에서 열어 주세요. (파일 이름으로는 검색됩니다)';
   if (m === 'toobig') return '내용이 너무 커서 읽지 않았습니다. (브라우저가 멈추는 것을 막기 위해)';
   return '파일 내용을 읽지 못했습니다.';
 }
@@ -657,9 +760,11 @@ function newId() { return Date.now().toString(36) + Math.random().toString(36).s
 async function addFolder() {
   if (!CAN_WATCH) { pickOnce(); return; }
   var h;
+  hideBlockHelp();
   try { h = await window.showDirectoryPicker({ mode: 'read' }); }
   catch (e) {
-    if (e.name === 'AbortError') return;
+    // 크롬이 막는 폴더(다운로드 등)를 고르면 크롬 안내 후 취소로 끝남 -> 다른 추가 방법을 안내
+    if (e.name === 'AbortError') { showBlockHelp(); return; }
     pickOnce();   // 폴더 선택 창이 막힌 환경이면 한 번 불러오기 사용
     return;
   }
@@ -674,7 +779,24 @@ async function addFolder() {
 
 // 한 번 불러오기: 크롬이 막는 폴더(다운로드 등)나 크롬·엣지가 아닌 브라우저용. 하위 폴더까지 모두 읽음 (자동 확인 없음)
 var reloadTarget = null;   // [새로 고침]으로 다시 불러올 폴더 번호
+var helpTimer;
+function showBlockHelp() { $('blockHelp').hidden = false; clearTimeout(helpTimer); helpTimer = setTimeout(hideBlockHelp, 30000); }
+function hideBlockHelp() { $('blockHelp').hidden = true; clearTimeout(helpTimer); }
 function pickOnce(id) { reloadTarget = id || null; $('dirInput').value = ''; $('dirInput').click(); }
+// 한 번 불러온 폴더의 문서 파일 읽기 (onlyMissing: 이미 읽은 파일은 건너뜀 - 제외 해제 때 사용)
+async function indexStatic(r, markNew, onlyMissing) {
+  var seen = {}, added = 0;
+  for (var entry of r.allFiles) {
+    var path = entry[0], file = entry[1], name = nfc(file.name), ext = docExt(name), key = r.id + '/' + path;
+    if (!ext || path.split('/').slice(0, -1).some(skipDir)) continue;
+    seen[key] = 1;
+    if (onlyMissing && files.has(key)) continue;
+    var res = await addFileInfo(r, path, name, ext, file, null, markNew);
+    if (!res.wasOld && markNew) added++;
+    else if (res.wasOld && key === current) openFile(current, true);
+  }
+  return { seen: seen, added: added };
+}
 async function loadStaticFolder(list) {
   var replaceId = reloadTarget; reloadTarget = null;
   if (!list || !list.length) { if (!replaceId) toast('폴더가 비어 있거나 불러오기를 취소했습니다.'); return; }
@@ -683,29 +805,16 @@ async function loadStaticFolder(list) {
   var r = replaceId ? roots.find(function (x) { return x.id === replaceId; }) : null;
   if (r) { r.name = rootName; }
   else { r = { id: newId(), name: rootName, handle: null, ok: true, scanned: true, isStatic: true }; roots.push(r); }
-  var seen = {}, addedCount = 0;
   r.loading = true;
+  r.allFiles = new Map();   // 폴더 안 전체 파일 (HTML 화면의 그림·CSS 찾기, 제외 해제 시 다시 읽기용)
   renderRoots();
   for (var i = 0; i < list.length; i++) {
-    var file = list[i];
-    var rel = nfc(file.webkitRelativePath || file.name);
-    var parts = rel.split('/'); parts.shift();
-    if (parts.some(function (p) { return SKIP_DIRS[p.toLowerCase()] || p.charAt(0) === '.'; })) continue;
-    var path = parts.join('/') || nfc(file.name);
-    var name = nfc(file.name);
-    var ext = EXT_GROUP[(name.split('.').pop() || '').toLowerCase()];
-    if (!ext || name.indexOf('.') < 0 || name.indexOf('~$') === 0) continue;   // ~$로 시작 = 오피스 임시 파일
-    var res = await addFileInfo(r, path, name, ext, file, null, !!replaceId);   // 새로 고침 때 처음 보는 파일은 NEW
-    seen[res.info.key] = 1;
-    if (!res.wasOld && replaceId) addedCount++;
-    else if (res.wasOld && res.info.key === current) openFile(current, true);
+    var parts = nfc(list[i].webkitRelativePath || list[i].name).split('/'); parts.shift();
+    if (parts.length) r.allFiles.set(parts.join('/'), list[i]);
   }
-  Array.from(files.keys()).forEach(function (k) {
-    if (files.get(k).rootId === r.id && !seen[k]) {
-      files.delete(k);
-      if (k === current) { current = null; $('vhead').hidden = true; }
-    }
-  });
+  var res = await indexStatic(r, !!replaceId, false), addedCount = res.added;   // 새로 고침 때 처음 보는 파일은 NEW
+  files.forEach(function (f, k) { if (f.rootId === r.id && !res.seen[k]) { files.delete(k); if (k === current) closeCurrent(); } });
+  dropOrphans();   // 불러오는 도중에 목록에서 뺀 경우
   r.loading = false; r.loadedAt = Date.now();
   firstScanDone = true;
   renderRoots(); render(); kick();   // 아래 상태 표시줄 갱신
@@ -715,11 +824,20 @@ async function loadStaticFolder(list) {
     : '"' + rootName + '" 폴더를 불러왔습니다. 하위 폴더까지 읽었고, 새 파일은 [새로 고침]으로 반영됩니다.');
 }
 
+// 열린 파일 닫기 (삭제됐거나 폴더를 뺀 경우)
+function closeCurrent(msg) {
+  current = null; navStack = []; updateNav(); $('vhead').hidden = true;
+  if (msg) $('vbody').innerHTML = '<div class="welcome">' + msg + '</div>';
+}
+// 목록에서 뺀 폴더의 파일 정리 (폴더를 읽는 도중에 뺀 경우 포함)
+function dropOrphans() {
+  var ids = {}; roots.forEach(function (r) { ids[r.id] = 1; });
+  files.forEach(function (f, k) { if (!ids[f.rootId]) { files.delete(k); if (k === current) closeCurrent(); } });
+}
 async function removeFolder(id) {
   var r = roots.find(function (x) { return x.id === id; }); if (!r) return;
   roots = roots.filter(function (x) { return x.id !== id; });
-  Array.from(files.keys()).forEach(function (k) { if (k.indexOf(id + '/') === 0) files.delete(k); });
-  if (current && current.indexOf(id + '/') === 0) { current = null; $('vhead').hidden = true; }
+  dropOrphans();
   await saveRoots();
   renderRoots(); render();
   if (!current) showWelcome();
@@ -737,24 +855,50 @@ async function reconnect() {
 }
 function kick() { clearTimeout(timer); if (!scanning) loop(); else timer = setTimeout(kick, 300); }
 
+// 등록한 폴더 목록 접기 (이 브라우저에 기억)
+var rootsFolded = false, filtersFolded = false;
+try { rootsFolded = localStorage.getItem(STORE_KEY.rootsFolded) === '1'; filtersFolded = localStorage.getItem(STORE_KEY.filtersFolded) === '1'; } catch (e) {}
+function toggleRoots() {
+  rootsFolded = !rootsFolded;
+  try { localStorage.setItem(STORE_KEY.rootsFolded, rootsFolded ? '1' : '0'); } catch (e) {}
+  renderRoots();
+}
+// 종류 단추 줄 접기 (이 브라우저에 기억) - 접혀 있어도 지금 고른 종류는 제목 옆에 표시
+function toggleFilters() {
+  filtersFolded = !filtersFolded;
+  try { localStorage.setItem(STORE_KEY.filtersFolded, filtersFolded ? '1' : '0'); } catch (e) {}
+  render();
+}
+function renderFiltersTitle() {
+  $('filters').classList.toggle('folded', filtersFolded);
+  $('filtersToggle').title = filtersFolded ? '펼치기' : '접기';
+  $('filtersToggle').innerHTML = chevron(filtersFolded) + '종류' + (filtersFolded ? '<span class="fsum">' + esc(extFilter ? EXT_LABEL[extFilter] : '전체') + '</span>' : '');
+}
 function renderRoots() {
   var pending = roots.filter(function (r) { return !r.ok && !r.isStatic; });
   $('reconnectBtn').hidden = !pending.length;
   if (pending.length) $('reconnectBtn').textContent = '"' + pending[0].name + '" 다시 연결' + (pending.length > 1 ? ' (외 ' + (pending.length - 1) + '개)' : '');
-  var html = '<div class="rtitle">등록한 폴더 ' + roots.length + '개</div>';
+  var warn = roots.some(function (r) { return !r.ok; });
+  var html = '<button class="rtitle" id="rootsToggle" title="' + (rootsFolded ? '펼치기' : '접기') + '">' +
+    chevron(rootsFolded) +
+    '등록한 폴더 ' + roots.length + '개' + (rootsFolded && warn ? ' <span class="rwarn">연결 필요</span>' : '') + '</button>';
+  $('roots').classList.toggle('folded', rootsFolded);
+  if (rootsFolded) { $('roots').innerHTML = html; placeExPop(); return; }
   if (!roots.length) html += '<div class="root off"><span class="rname">위의 [+ 폴더 추가]로 등록하세요</span></div>';
+  var cnt = {}; files.forEach(function (f) { cnt[f.rootId] = (cnt[f.rootId] || 0) + 1; });
   roots.forEach(function (r) {
-    var n = 0; files.forEach(function (f) { if (f.rootId === r.id) n++; });
-    html += '<div class="root' + (r.ok ? '' : ' off') + '" title="' + esc(r.name) + '">' + FOLDER_SVG + '<span class="rname">' + esc(r.name) + '</span>' +
+    var n = cnt[r.id] || 0;
+    html +='<div class="root' + (r.ok ? '' : ' off') + '" title="' + esc(r.name) + '">' + FOLDER_SVG + '<span class="rname">' + esc(r.name) + '</span>' +
       (r.ok ? '<span class="rcnt">' + (r.loading ? '읽는 중' : r.scanned ? n + '개' + (r.isStatic ? ' · ' + fmtClock(new Date(r.loadedAt || Date.now())) + ' 불러옴' : '') : '읽는 중') + '</span>' : '<span class="rwarn">' + esc(r.error || '연결 필요') + '</span>') +
       (r.isStatic ? '<button class="reload" data-reload="' + r.id + '" title="폴더를 다시 골라 새 파일 반영">새로 고침</button>' : '') +
       '<button data-remove="' + r.id + '" title="목록에서 빼기" aria-label="목록에서 빼기">&times;</button></div>';
   });
   $('roots').innerHTML = html;
+  placeExPop();   // 등록 폴더 칸 높이가 바뀌면 제외 창도 따라감
 }
 
 // 크롬은 다운로드·사용자 폴더·윈도우 폴더 같은 곳을 "시스템 파일 포함"이라며 통째로는 막음 (그 안의 하위 폴더는 가능)
-var BLOCK_TIP = '<span class="omuted">"시스템 파일이 포함되어 있다"며 막히는 폴더(다운로드 등)는 <b>[한 번 불러오기]</b>로 여세요.<br>하위 폴더까지 읽고, 새 파일은 폴더 옆 [새로 고침]으로 반영됩니다. (창을 다시 열면 다시 불러와야 합니다)</span>';
+var BLOCK_TIP = '<span class="omuted">다운로드처럼 크롬이 막는 폴더는 [+ 폴더 추가] 후 나오는 안내에서 추가할 수 있습니다.</span>';
 function showWelcome() {
   var tip = CAN_WATCH
     ? '폴더는 3초마다 다시 확인해서 새 파일이 생기면 바로 표시합니다.'
@@ -764,15 +908,72 @@ function showWelcome() {
     : '<div class="welcome"><h2>로컬 문서 탐색기</h2><b>[+ 폴더 추가]</b>로 보고 싶은 폴더를 등록하세요.<br>여러 개 등록할 수 있고, 목록은 저장되어 다음에도 유지됩니다.<br>' + BLOCK_TIP + '<br>MD · TXT · HTML · 엑셀 · PPT · 워드 파일을 읽어 목록과 검색을 제공합니다.<br>파일 내용은 이 컴퓨터 안에서만 읽고, 어디로도 보내지 않습니다.<br>' + tip + '</div>';
 }
 
+// ===== 제외할 종류 (DRM 등으로 어차피 못 읽는 종류를 목록에서 빼기, 이 브라우저에 저장) =====
+var excluded = {};
+try { JSON.parse(localStorage.getItem(STORE_KEY.excluded) || '[]').forEach(function (e) { if (EXT_LABEL[e]) excluded[e] = 1; }); } catch (e) {}
+// 읽을 문서 종류인지 (제외한 종류, ~$로 시작하는 오피스 임시 파일은 빼고)
+function docExt(name) {
+  var ext = EXT_GROUP[(name.split('.').pop() || '').toLowerCase()];
+  return ext && name.indexOf('.') > 0 && name.indexOf('~$') !== 0 && !excluded[ext] ? ext : null;
+}
+// 건너뛸 폴더인지 (.git, node_modules 같은 개발 폴더와 점(.)으로 시작하는 숨김 폴더)
+function skipDir(name) { return SKIP_DIRS[name.toLowerCase()] || name.charAt(0) === '.'; }
+// exts: 종류 하나('pptx') 또는 여러 개(['md','txt']) - [All]/[None]은 한 번에 처리
+function setExcluded(exts, on) {
+  exts = [].concat(exts);
+  exts.forEach(function (x) { if (on) excluded[x] = 1; else delete excluded[x]; });
+  try { localStorage.setItem(STORE_KEY.excluded, JSON.stringify(Object.keys(excluded))); } catch (e) {}
+  if (on) {
+    files.forEach(function (f, k) { if (exts.indexOf(f.ext) >= 0) { files.delete(k); if (k === current) { closeCurrent(); showWelcome(); } } });
+    if (exts.indexOf(extFilter) >= 0) extFilter = '';
+  } else {
+    // 다시 포함: 한 번 불러온 폴더는 가진 파일 목록에서, 실시간 폴더는 처음 읽기처럼(NEW 표시 없이) 다시 확인
+    roots.forEach(function (r) {
+      if (r.isStatic) indexStatic(r, false, true).then(function () { renderRoots(); render(); });
+      else if (r.ok) r.scanned = false;
+    });
+    kick();
+  }
+  applyExcludedUI(); renderRoots(); render();
+}
+function applyExcludedUI() {   // 제외한 종류의 단추는 숨김
+  document.querySelectorAll('.chip[data-ext]').forEach(function (c) {
+    var k = c.dataset.ext;
+    c.hidden = !!(k && excluded[k]);
+    c.classList.toggle('on', k === extFilter);
+  });
+}
+function toggleExPop(force) {
+  var pop = $('exPop'), open = force != null ? force : pop.hidden;
+  if (!open) { pop.hidden = true; return; }
+  // 하나도 체크 안 됐으면 [All] (모두 체크), 하나라도 체크돼 있으면 [None] (모두 풀기)
+  var any = Object.keys(excluded).length > 0;
+  pop.innerHTML = '<h4>제외<button type="button" class="xall" data-ex-all="' + (any ? '0' : '1') + '">' + (any ? 'None' : 'All') + '</button></h4>' +
+    Object.keys(EXT_LABEL).map(function (k) {
+      return '<label><input type="checkbox" data-ex="' + k + '"' + (excluded[k] ? ' checked' : '') + '> ' + EXT_LABEL[k] + '</label>';
+    }).join('') + '<div class="xnote">체크한 종류는 목록·검색에서 빠지고 내용도 읽지 않습니다.<br>이 설정은 이 브라우저에 저장됩니다.</div>';
+  pop.hidden = false;
+  placeExPop();
+}
+// 제외 창을 아이콘 바로 아래(오른쪽 끝 맞춤)에 붙임 - 종류 단추가 숨거나 다시 나와 아이콘 위치가 바뀌어도 따라감
+function placeExPop() {
+  var pop = $('exPop'), btn = $('exBtn');
+  if (pop.hidden) return;
+  if (!btn) { pop.hidden = true; return; }   // 전체 탭이 아니면 닫기
+  var r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px'; pop.style.top = (r.bottom + 6) + 'px';
+}
+window.addEventListener('resize', placeExPop);
+
 // ===== 폴더 확인 (주기적으로 반복) =====
 async function walk(dir, prefix, out) {
   for await (var entry of dir.entries()) {
     var name = nfc(entry[0]), h = entry[1];
     if (h.kind === 'directory') {
-      if (!SKIP_DIRS[name.toLowerCase()] && name.charAt(0) !== '.') await walk(h, prefix + name + '/', out);
+      if (!skipDir(name)) await walk(h, prefix + name + '/', out);
     } else {
-      var ext = EXT_GROUP[(name.split('.').pop() || '').toLowerCase()];
-      if (ext && name.indexOf('.') > 0 && name.indexOf('~$') !== 0) out.push({ path: prefix + name, name: name, ext: ext, handle: h });
+      var ext = docExt(name);
+      if (ext) out.push({ path: prefix + name, name: name, ext: ext, handle: h });
     }
   }
 }
@@ -780,7 +981,7 @@ async function walk(dir, prefix, out) {
 async function addFileInfo(r, path, name, ext, file, handle, isNew) {
   var key = r.id + '/' + path;
   var old = files.get(key);
-  var text = null, searchText = '', officeHtml = null, readError = '';
+  var text = null, searchText = '', officeHtml = null, readError = '', lock = '';
   if (file.size <= (OFFICE[ext] ? MAX_OFFICE : MAX_READ)) {
     try {
       if (OFFICE[ext]) {
@@ -790,12 +991,16 @@ async function addFileInfo(r, path, name, ext, file, handle, isNew) {
         text = nfc(decode(await file.arrayBuffer()));
         searchText = ext === 'html' ? htmlToText(text) : text;
       }
-    } catch (e) { text = null; searchText = ''; readError = OFFICE[ext] ? officeError(e) : '파일 내용을 읽지 못했습니다.'; }
+    } catch (e) {
+      text = null; searchText = ''; readError = OFFICE[ext] ? officeError(e) : '파일 내용을 읽지 못했습니다.';
+      var em = e && e.message;
+      if (OFFICE[ext]) lock = em === 'password' || em === 'locked' ? 'password' : em === 'drm' || em === 'notzip' ? 'drm' : '';
+    }
   } else readError = '파일이 너무 커서(' + fmtSize(file.size) + ') 미리보기를 생략했습니다.';
   var info = {
     key: key, rootId: r.id, path: path, name: name, ext: ext, handle: handle,
     folder: r.name + (path.indexOf('/') >= 0 ? '/' + path.slice(0, path.lastIndexOf('/')) : ''),
-    lastModified: file.lastModified, size: file.size, text: text, searchText: searchText, officeHtml: officeHtml, readError: readError,
+    lastModified: file.lastModified, size: file.size, text: text, searchText: searchText, officeHtml: officeHtml, readError: readError, lock: lock,
     lower: (name + '\n' + searchText).toLowerCase(),
     isNew: old ? old.isNew : isNew, foundAt: old ? old.foundAt : Date.now()
   };
@@ -804,10 +1009,11 @@ async function addFileInfo(r, path, name, ext, file, handle, isNew) {
 }
 
 async function scan() {
-  var added = [], changed = [], removed = [], scannedRoots = {}, firstOf = [];
-  for (var i = 0; i < roots.length; i++) {
-    var r = roots[i];
-    if (!r.ok || r.isStatic) continue;
+  var added = [], changed = [], removed = [], firstLoad = false;
+  var list = roots.slice();   // 읽는 도중 폴더를 빼도 안전하게 복사본으로 돌기
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    if (!r.ok || r.isStatic || roots.indexOf(r) < 0) continue;
     var part = [];
     try { await walk(r.handle, '', part); }
     catch (e) {
@@ -818,6 +1024,7 @@ async function scan() {
     var seen = {};
     for (var j = 0; j < part.length; j++) {
       var f = part[j], key = r.id + '/' + f.path;
+      if (excluded[f.ext]) continue;   // 확인 도중에 제외한 종류
       seen[key] = 1;
       var file;
       try { file = await f.handle.getFile(); } catch (e) { continue; }
@@ -827,13 +1034,22 @@ async function scan() {
       var res = await addFileInfo(r, f.path, f.name, f.ext, file, f.handle, r.scanned);
       if (res.wasOld) changed.push(res.info); else if (res.info.isNew) added.push(res.info);
     }
+    if (roots.indexOf(r) < 0) continue;   // 읽는 도중에 목록에서 뺀 폴더
     files.forEach(function (info, k) { if (info.rootId === r.id && !seen[k]) { removed.push(k); files.delete(k); } });
-    scannedRoots[r.id] = 1;
-    if (!r.scanned) { r.scanned = true; firstOf.push(r); }
+    if (!r.scanned) { r.scanned = true; firstLoad = true; }
   }
-  return { added: added, changed: changed, removed: removed, firstLoad: firstOf.length > 0 };
+  dropOrphans();
+  return { added: added, changed: changed, removed: removed, firstLoad: firstLoad };
 }
 
+// 아래 상태 표시줄의 점을 누르면 실시간 확인 멈춤 / 다시 시작 (이 창을 연 동안만)
+var paused = false;
+function togglePause() {
+  paused = !paused;
+  clearTimeout(timer);
+  if (paused) setLive('paused', '실시간 확인 멈춤 (점을 누르면 다시 시작)');
+  else kick();
+}
 async function loop() {
   if (scanning) return;
   var live = roots.filter(function (r) { return r.ok && !r.isStatic; });
@@ -841,6 +1057,8 @@ async function loop() {
     setLive(false, roots.length ? (roots.some(function (r) { return r.isStatic; }) ? '한 번 불러온 폴더 (새 파일은 [새로 고침])' : '연결된 폴더 없음') : '폴더 없음');
     return;
   }
+  // 멈춤 중이어도 새로 추가한 폴더는 한 번은 읽음
+  if (paused && live.every(function (r) { return r.scanned; })) { setLive('paused', '실시간 확인 멈춤 (점을 누르면 다시 시작)'); return; }
   scanning = true;
   var t0 = performance.now();
   try {
@@ -848,13 +1066,12 @@ async function loop() {
     var r = await scan();
     var wasFirst = !firstScanDone;
     firstScanDone = true;
-    setLive(true, '실시간 확인 중 (폴더 ' + roots.filter(function (x) { return x.ok && !x.isStatic; }).length + '개)');
+    var staticN = roots.filter(function (x) { return x.isStatic; }).length;
+    setLive(paused ? 'paused' : true,(paused ? '실시간 확인 멈춤 (점을 누르면 다시 시작)' : '실시간 확인 중 (폴더 ' + live.length + '개)') + (staticN ? ' · 한 번 불러온 폴더 ' + staticN + '개' : ''));
     if (wasFirst && !current) showWelcome();
     if (r.added.length) toast('새 파일 ' + r.added.length + '개: ' + r.added.map(function (f) { return f.name; }).slice(0, 3).join(', '));
-    if (current && r.removed.indexOf(current) >= 0) {
-      current = null; $('vhead').hidden = true;
-      $('vbody').innerHTML = '<div class="welcome">열려 있던 파일이 삭제되었습니다.</div>';
-    } else if (current && r.changed.some(function (f) { return f.key === current; })) openFile(current, true);
+    if (current && r.removed.indexOf(current) >= 0) closeCurrent('열려 있던 파일이 삭제되었습니다.');
+    else if (current && r.changed.some(function (f) { return f.key === current; })) openFile(current, true);
     if (wasFirst || r.firstLoad || r.added.length || r.changed.length || r.removed.length || before !== roots.map(function (x) { return x.ok; }).join()) { renderRoots(); render(); }
   } catch (e) {
     setLive(false, '확인 중 오류');
@@ -862,25 +1079,45 @@ async function loop() {
   var took = performance.now() - t0;
   $('lastScan').textContent = '마지막 확인 ' + fmtClock(new Date()) + ' (' + Math.round(took) + 'ms)';
   scanning = false;
-  timer = setTimeout(loop, Math.max(MIN_INTERVAL, took * 3));
+  if (!paused) timer = setTimeout(loop, Math.max(MIN_INTERVAL, took * 3));
 }
-function setLive(on, text) {
-  $('liveState').className = on ? 'live' : '';
-  $('liveState').innerHTML = '<span class="dot"></span>' + esc(text);
+// state: true = 확인 중(초록), 'paused' = 멈춤(빨강), false = 확인할 폴더 없음(회색)
+function setLive(state, text) {
+  var el = $('liveState');
+  el.className = state === 'paused' ? 'paused' : state ? 'live' : '';
+  el.title = state === 'paused' ? '누르면 실시간 확인을 다시 시작합니다' : state ? '누르면 실시간 확인을 멈춥니다' : '';
+  el.innerHTML = '<span class="dot"></span>' + esc(text);
 }
 
 // ===== 목록 그리기 =====
-function filtered() {
+function filtered(allTypes) {
   var arr = [];
-  files.forEach(function (f) { if (!extFilter || f.ext === extFilter) arr.push(f); });
+  files.forEach(function (f) { if (allTypes || !extFilter || f.ext === extFilter) arr.push(f); });
   return arr;
 }
+// 종류 단추에 개수 표시 (검색 중이면 검색 결과 개수), 0개인 종류는 흐리게
+function updateChips(allResults) {
+  var counts = {}, total = 0;
+  if (allResults) allResults.forEach(function (r) { counts[r.f.ext] = (counts[r.f.ext] || 0) + 1; total++; });
+  else files.forEach(function (f) { counts[f.ext] = (counts[f.ext] || 0) + 1; total++; });
+  document.querySelectorAll('.chip[data-ext]').forEach(function (c) {
+    var k = c.dataset.ext, n = k ? (counts[k] || 0) : total;
+    c.innerHTML = esc(k ? EXT_LABEL[k] : '전체') + ' <span class="ccount">' + n + '</span>';
+    c.classList.toggle('zero', !n && !!k);
+  });
+}
+function noTypeHtml(msg, otherCount) {
+  return '<div class="empty">' + msg + (otherCount ? '<br><button class="chip" data-reset-filter>전체 종류 보기 (' + otherCount + '개)</button>' : '') + '</div>';
+}
 
+function lockIcon(kind) {
+  return '<span class="lock ' + kind + '" title="' + (kind === 'password' ? '열기 암호가 걸린 파일' : '문서보안(DRM) 파일 - 내용은 읽을 수 없음') + '">' + LOCK_SVG + '</span>';
+}
 function itemHtml(f, extra) {
   extra = extra || {};
   return '<button class="item' + (f.key === current ? ' on' : '') + '" data-key="' + esc(f.key) + '">' +
     '<span class="ext ' + f.ext + '">' + f.ext.toUpperCase() + '</span>' +
-    '<span class="name" title="' + esc(f.folder + '/' + f.name) + '">' + esc(f.name) + '</span>' +
+    '<span class="name" title="' + esc(f.folder + '/' + f.name) + '">' + (f.lock ? lockIcon(f.lock) : '') + esc(f.name) + '</span>' +
     (extra.hits ? '<span class="hits">' + extra.hits + '건</span>' : (f.isNew ? '<span class="badge">NEW</span>' : '<span></span>')) +
     '<span class="meta">' + (extra.showFolder ? esc(f.folder) + ' · ' : '') + fmtTime(f.lastModified) + ' · ' + fmtSize(f.size) + '</span>' +
     (extra.snip ? '<span class="snip">' + extra.snip + '</span>' : '') +
@@ -898,10 +1135,10 @@ function markHtml(raw, re) {
   return out + esc(raw.slice(last));
 }
 
-function searchResults() {
+function searchResults(allTypes) {
   var t = terms().map(function (s) { return s.toLowerCase(); }); if (!t.length) return [];
   var re = termRegex(), res = [];
-  filtered().forEach(function (f) {
+  filtered(allTypes).forEach(function (f) {
     if (!t.every(function (w) { return f.lower.indexOf(w) >= 0; })) return;
     var body = f.searchText || '';
     re.lastIndex = 0;
@@ -918,35 +1155,54 @@ function searchResults() {
   return res.sort(function (a, b) { return b.score - a.score || b.f.lastModified - a.f.lastModified; });
 }
 
-function count(ext) { var n = 0; files.forEach(function (f) { if (f.ext === ext) n++; }); return n; }
-
+// 전체 탭의 폴더 묶음 접기 (이 창을 연 동안만 기억)
+var foldedGroups = {};
+function groupKey(f) { return f.rootId + '/' + f.folder; }   // 이름이 같은 폴더를 두 개 등록해도 따로 묶이게
 function render() {
   var list = filtered();
-  var newCount = 0; files.forEach(function (f) { if (f.isNew) newCount++; });
+  var newCount = 0, locked = 0, byExt = {};
+  files.forEach(function (f) { if (f.isNew) newCount++; if (f.lock) locked++; byExt[f.ext] = (byExt[f.ext] || 0) + 1; });
   var hasQuery = !!query.trim();
-  var results = hasQuery ? searchResults() : [];
+  var allResults = hasQuery ? searchResults(true) : null;
+  var results = hasQuery ? allResults.filter(function (r) { return !extFilter || r.f.ext === extFilter; }) : [];
+  updateChips(allResults);
+  renderFiltersTitle();
+  var typeName = extFilter ? EXT_LABEL[extFilter] : '';
   $('cntAll').textContent = list.length;
   $('cntRecent').textContent = newCount ? '+' + newCount : '';
   $('cntSearch').textContent = hasQuery ? results.length : '';
   document.title = (newCount ? '(' + newCount + ') ' : '') + '로컬 문서 탐색기';
-  var parts = []; Object.keys(EXT_LABEL).forEach(function (k) { var n = count(k); if (n) parts.push(EXT_LABEL[k] + ' ' + n); });
-  $('stat').textContent = '파일 ' + files.size + '개' + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
+  var parts = Object.keys(EXT_LABEL).filter(function (k) { return byExt[k]; }).map(function (k) { return EXT_LABEL[k] + ' ' + byExt[k]; });
+  $('stat').textContent = '파일 ' + files.size + '개' + (parts.length ? ' (' + parts.join(' · ') + ')' : '') + (locked ? ' · 잠긴 파일 ' + locked + '개' : '');
 
   var html = '';
   if (!roots.length) html = '<div class="empty">위의 <b>[+ 폴더 추가]</b>를 눌러 시작하세요.</div>';
   else if (tab === 'all') {
     var order = {}; roots.forEach(function (r, i) { order[r.id] = i; });
     // 같은 폴더끼리 묶이도록: 등록 순서 → 폴더(최상위 먼저) → 파일 이름
+    var sub = function (f) { return f.path.indexOf('/') >= 0 ? f.path.slice(0, f.path.lastIndexOf('/')) : ''; };
     list.sort(function (a, b) {
-      var da = a.folder === roots[order[a.rootId]].name ? '' : a.folder, db = b.folder === roots[order[b.rootId]].name ? '' : b.folder;
-      return (order[a.rootId] - order[b.rootId]) || (da === db ? 0 : (da === '' ? -1 : (db === '' ? 1 : da.localeCompare(db, 'ko')))) || a.name.localeCompare(b.name, 'ko');
+      var da = sub(a), db = sub(b);
+      return ((order[a.rootId] || 0) - (order[b.rootId] || 0)) || (da === db ? 0 : (da === '' ? -1 : (db === '' ? 1 : da.localeCompare(db, 'ko')))) || a.name.localeCompare(b.name, 'ko');
     });
-    var lastFolder = null;
+    var lastGroup = null, groupCount = {};
+    list.forEach(function (f) { var g = groupKey(f); groupCount[g] = (groupCount[g] || 0) + 1; });
+    // 위쪽 작은 단추들: [모두 접기] [모두 펼치기] + 오른쪽 끝 [제외] (목록이 비어도 표시 - 다시 포함할 수 있게)
+    html += '<div class="gbar">' + (list.length ? '<button data-fold-all="1" title="모두 접기" aria-label="모두 접기">' + ICON_FOLDER_SHUT +
+      '</button><button data-fold-all="0" title="모두 펼치기" aria-label="모두 펼치기">' + ICON_FOLDER_OPEN + '</button>' : '') +
+      '<button id="exBtn" class="xbtn' + (Object.keys(excluded).length ? ' on' : '') + '" title="제외" aria-label="제외">' + ICON_FUNNEL + '</button></div>';
     list.forEach(function (f) {
-      if (f.folder !== lastFolder) { html += '<div class="group">' + FOLDER_SVG + esc(f.folder) + '</div>'; lastFolder = f.folder; }
-      html += itemHtml(f);
+      var g = groupKey(f), shut = !!foldedGroups[g];
+      if (g !== lastGroup) {
+        html += '<button class="group gtoggle" data-group="' + esc(g) + '" title="' + (shut ? '펼치기' : '접기') + '">' + chevron(shut) + FOLDER_SVG +
+          '<span class="gname">' + esc(f.folder) + '</span><span class="gcnt">' + groupCount[g] + '</span></button>';
+        lastGroup = g;
+      }
+      if (!shut) html += itemHtml(f);
     });
-    if (!list.length) html = '<div class="empty">' + (firstScanDone ? '읽을 수 있는 문서 파일이 없습니다.' : '읽는 중...') + '</div>';
+    if (!list.length) html += !firstScanDone ? '<div class="empty">읽는 중...</div>'
+      : extFilter && files.size ? noTypeHtml('등록한 폴더 ' + roots.length + '개에 <b>' + typeName + '</b> 파일이 없습니다.', files.size)
+      : '<div class="empty">등록한 폴더에 읽을 수 있는 문서 파일이 없습니다.' + (Object.keys(excluded).length ? '<br>위 거름망 아이콘에서 제외한 종류를 확인해 보세요.' : '') + '</div>';
   } else if (tab === 'recent') {
     var fresh = list.filter(function (f) { return f.isNew; }).sort(function (a, b) { return b.foundAt - a.foundAt; });
     if (fresh.length) {
@@ -956,12 +1212,16 @@ function render() {
     var recent = list.filter(function (f) { return !f.isNew; }).sort(function (a, b) { return b.lastModified - a.lastModified; }).slice(0, RECENT_LIMIT);
     html += '<div class="group">최근 수정순 ' + recent.length + '개</div>';
     html += recent.map(function (f) { return itemHtml(f, { showFolder: true }); }).join('');
+    if (!list.length && extFilter && files.size) html = noTypeHtml('등록한 폴더에 <b>' + typeName + '</b> 파일이 없습니다.', files.size);
   } else {
     if (!hasQuery) html = '<div class="empty">위 검색창에 찾을 단어를 입력하세요.<br>띄어쓰기로 여러 단어를 넣으면 모두 들어간 파일만 찾습니다.</div>';
-    else if (!results.length) html = '<div class="empty">"' + esc(query.trim()) + '" 검색 결과가 없습니다.</div>';
+    else if (!results.length) html = extFilter && allResults.length
+      ? noTypeHtml('"' + esc(query.trim()) + '"을(를) <b>' + typeName + '</b> 파일에서는 찾지 못했습니다.<br>다른 종류 파일에서는 찾았습니다.', allResults.length)
+      : '<div class="empty">"' + esc(query.trim()) + '" 검색 결과가 없습니다.</div>';
     else html = results.map(function (r) { return itemHtml(r.f, { showFolder: true, hits: r.hits, snip: r.snip }); }).join('');
   }
   $('list').innerHTML = html;
+  placeExPop();
 }
 
 // ===== 마크다운 표시 (원문 속 HTML 태그는 글자로만 표시해서 안전) =====
@@ -1068,6 +1328,118 @@ function highlight(el) {
   return total;
 }
 
+// ===== HTML 화면: 링크 이동 / 같은 폴더의 그림·CSS 표시 =====
+var htmlToken = 0, navStack = [];   // navStack: 링크로 들어오기 전 파일들 (뒤로 가기용)
+var IMG_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif' };
+function fileDir(f) { return f.path.indexOf('/') >= 0 ? f.path.slice(0, f.path.lastIndexOf('/') + 1) : ''; }
+// 링크 주소 -> 등록 폴더 안의 경로 (인터넷 주소·폴더 바깥이면 null)
+function localPath(dir, href) {
+  href = (href || '').trim();
+  if (!href || /^[a-z][a-z0-9+.\-]*:/i.test(href) || href.indexOf('//') === 0) return null;
+  href = href.replace(/[?#].*$/, '').replace(/\\/g, '/'); if (!href) return null;
+  try { href = decodeURIComponent(href); } catch (e) {}
+  var parts = (href.charAt(0) === '/' ? href.slice(1) : dir + href).split('/'), out = [];
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i] === '..') { if (!out.length) return null; out.pop(); }
+    else if (parts[i] && parts[i] !== '.') out.push(parts[i]);
+  }
+  return out.length ? nfc(out.join('/')) : null;
+}
+async function rootFile(r, p) {
+  try {
+    if (!r) return null;
+    if (r.isStatic) return r.allFiles ? r.allFiles.get(p) || null : null;
+    var d = r.handle, segs = p.split('/');
+    for (var i = 0; i < segs.length - 1; i++) d = await d.getDirectoryHandle(segs[i]);
+    return await (await d.getFileHandle(segs[segs.length - 1])).getFile();
+  } catch (e) { return null; }
+}
+function toDataUrl(file, type) {
+  return new Promise(function (res) {
+    var fr = new FileReader();
+    fr.onload = function () { var u = String(fr.result); res(type ? u.replace(/^data:[^;,]*/, 'data:' + type) : u); };
+    fr.onerror = function () { res(''); };
+    fr.readAsDataURL(file);
+  });
+}
+async function buildHtmlDoc(f) {
+  var doc = new DOMParser().parseFromString(f.text, 'text/html');
+  // 원본의 스크립트·끼워 넣은 창·자동 이동은 모두 제거 (보기 전용)
+  doc.querySelectorAll('script, noscript, iframe, frame, frameset, object, embed, applet, base, meta[http-equiv]').forEach(function (e) { e.remove(); });
+  doc.querySelectorAll('*').forEach(function (el) {
+    Array.from(el.attributes).forEach(function (a) {
+      if (/^on/i.test(a.name) || /^\s*(javascript|vbscript):/i.test(a.value)) el.removeAttribute(a.name);
+    });
+  });
+  var r = roots.find(function (x) { return x.id === f.rootId; }), dir = fileDir(f), total = 0;
+  var links = doc.querySelectorAll('link[href]');
+  for (var i = 0; i < links.length; i++) {
+    var l = links[i];
+    if (!/stylesheet/i.test(l.getAttribute('rel') || '')) continue;
+    var p = localPath(dir, l.getAttribute('href')); if (!p) continue;
+    var cf = await rootFile(r, p);
+    if (cf && cf.size <= 2 * 1024 * 1024) { var st = doc.createElement('style'); st.textContent = decode(await cf.arrayBuffer()); l.replaceWith(st); }
+    else l.remove();
+  }
+  var imgs = doc.querySelectorAll('img[src], input[type="image"][src]');
+  for (var j = 0; j < imgs.length; j++) {
+    var im = imgs[j], ip = localPath(dir, im.getAttribute('src')); if (!ip) continue;
+    var imf = await rootFile(r, ip);
+    if (imf && imf.size <= 8 * 1024 * 1024 && total + imf.size <= 60 * 1024 * 1024) {
+      total += imf.size;
+      im.setAttribute('src', await toDataUrl(imf, IMG_TYPES[(ip.split('.').pop() || '').toLowerCase()]));
+    } else im.removeAttribute('src');
+    im.removeAttribute('srcset');
+  }
+  var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var head = doc.head || doc.documentElement.insertBefore(doc.createElement('head'), doc.body);
+  var csp = doc.createElement('meta');
+  csp.setAttribute('http-equiv', 'Content-Security-Policy');
+  csp.setAttribute('content', "default-src 'none'; img-src data: http: https:; style-src 'unsafe-inline' http: https:; font-src data: http: https:; media-src data:; script-src 'nonce-" + nonce + "'");
+  head.insertBefore(csp, head.firstChild);
+  var cs = doc.createElement('meta'); cs.setAttribute('charset', 'utf-8'); head.insertBefore(cs, head.firstChild);
+  var sc = doc.createElement('script'); sc.setAttribute('nonce', nonce);
+  sc.textContent = "document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';e.preventDefault();" +
+    "if(h.charAt(0)==='#'){var id=h.slice(1);try{id=decodeURIComponent(id)}catch(x){}var t=document.getElementById(id)||document.getElementsByName(id)[0];if(t)t.scrollIntoView();return;}" +
+    "parent.postMessage({docfinderLink:h},'*');},true);";
+  (doc.body || doc.documentElement).appendChild(sc);
+  return '<!doctype html>' + doc.documentElement.outerHTML;
+}
+function followLink(href) {
+  var f = files.get(current); if (!f) return;
+  href = String(href).trim();
+  if (/^(https?:|mailto:)/i.test(href)) {
+    var w = window.open(href, '_blank', 'noopener,noreferrer');
+    if (!w) toast('브라우저가 새 창을 막았습니다: ' + href);
+    return;
+  }
+  var p = localPath(fileDir(f), href);
+  if (!p) { toast('이 링크는 열 수 없습니다: ' + href); return; }
+  var key = f.rootId + '/' + p;
+  if (!files.has(key)) { toast('링크한 파일을 목록에서 찾을 수 없습니다: ' + p); return; }
+  if (key === current) return;
+  navStack.push(current);
+  openFile(key);
+}
+function goBack() {
+  while (navStack.length) { var k = navStack.pop(); if (files.has(k)) { openFile(k); return; } }
+  updateNav();
+}
+function updateNav() {   // 링크로 들어왔을 때만 [뒤로]와 지나온 경로 표시
+  var on = navStack.length > 0;
+  $('backBtn').hidden = !on; $('vCrumb').hidden = !on;
+  if (on) {
+    var names = navStack.concat([current]).map(function (k) { var x = files.get(k); return x ? x.name : '(삭제됨)'; });
+    if (names.length > 4) names = ['...'].concat(names.slice(-4));
+    $('vCrumb').textContent = names.join(' › ');
+  }
+}
+window.addEventListener('message', function (e) {
+  var fr = $('vbody').querySelector('iframe');
+  if (!fr || e.source !== fr.contentWindow || !e.data || typeof e.data.docfinderLink !== 'string') return;
+  followLink(e.data.docfinderLink);
+});
+
 // ===== 파일 보기 =====
 function openFile(key, keepScroll) {
   var f = files.get(key); if (!f) return;
@@ -1075,10 +1447,13 @@ function openFile(key, keepScroll) {
   var scroll = keepScroll ? body.scrollTop : 0;
   if (current !== key) viewMode = 'rendered';
   current = key;
-  if (f.isNew) { f.isNew = false; render(); }
+  var fg = foldedGroups[groupKey(f)];   // 접힌 폴더의 파일을 열면(검색·링크 등) 그 폴더는 펼침
+  if (fg) delete foldedGroups[groupKey(f)];
+  if (f.isNew || (fg && tab === 'all')) { f.isNew = false; render(); }
   else document.querySelectorAll('.item').forEach(function (b) { b.classList.toggle('on', b.dataset.key === key); });
 
   $('vhead').hidden = false;
+  updateNav();
   $('vExt').className = 'ext ' + f.ext; $('vExt').textContent = f.ext.toUpperCase();
   $('vTitle').textContent = f.name;
   $('vInfo').textContent = f.folder + ' · 수정 ' + fmtFull(f.lastModified) + ' · ' + fmtSize(f.size);
@@ -1088,16 +1463,20 @@ function openFile(key, keepScroll) {
 
   body.innerHTML = '';
   if (f.text == null) {
-    body.innerHTML = '<div class="welcome warn">' + esc(f.readError || '파일 내용을 읽지 못했습니다.') + '</div>';
+    body.innerHTML = f.lock
+      ? '<div class="welcome lockview"><div class="lock big ' + f.lock + '">' + LOCK_SVG + '</div><h2>' + (f.lock === 'password' ? '열기 암호가 걸린 파일' : '문서보안(DRM) 파일') + '</h2>' + esc(f.readError) + '</div>'
+      : '<div class="welcome warn">' + esc(f.readError || '파일 내용을 읽지 못했습니다.') + '</div>';
     setHits(0); return;
   }
   if (f.ext === 'html' && viewMode === 'rendered') {
     var fr = document.createElement('iframe');
-    fr.setAttribute('sandbox', '');               // 스크립트·양식·팝업 실행 차단
+    // 원본 스크립트는 지우고, 링크 누름을 알려 주는 우리 스크립트 하나만 실행 허용 (부모 화면·저장소 접근 불가)
+    fr.setAttribute('sandbox', 'allow-scripts');
     fr.setAttribute('referrerpolicy', 'no-referrer');
-    // 원본에 글자 인코딩 선언이 없어도 깨지지 않게 UTF-8 선언을 앞에 붙임
-    fr.srcdoc = '<meta charset="utf-8">' + f.text;
     body.appendChild(fr);
+    var token = ++htmlToken;
+    buildHtmlDoc(f).then(function (html) { if (token === htmlToken) fr.srcdoc = html; })
+      .catch(function () { if (token === htmlToken) fr.srcdoc = '<meta charset="utf-8"><p>화면을 만들지 못했습니다. [원문 보기]로 확인해 주세요.</p>'; });
     setHits(query.trim() ? -1 : 0);
     return;
   }
@@ -1142,50 +1521,134 @@ function goHit(delta) {
 
 // ===== 이벤트 =====
 $('pickBtn').onclick = addFolder;
-$('onceBtn').onclick = function () { pickOnce(); };
+$('backBtn').onclick = goBack;
+$('helpOnce').onclick = function () { hideBlockHelp(); pickOnce(); };
+$('helpClose').onclick = hideBlockHelp;
 $('reconnectBtn').onclick = reconnect;
+$('liveState').onclick = function () { if (this.className) togglePause(); };   // 확인할 폴더가 있을 때만
 $('dirInput').addEventListener('change', function () { loadStaticFolder(this.files); });
 document.addEventListener('click', function (e) {
   var rm = e.target.closest('[data-remove]'); if (rm) { removeFolder(rm.dataset.remove); return; }
   var rl = e.target.closest('[data-reload]'); if (rl) { pickOnce(rl.dataset.reload); return; }
+  if (e.target.closest('#rootsToggle')) { toggleRoots(); return; }
+  if (e.target.closest('#filtersToggle')) { toggleFilters(); return; }
+  if (e.target.closest('#exBtn')) { toggleExPop(); return; }
+  if (!$('exPop').hidden && !e.target.closest('#exPop')) toggleExPop(false);   // 바깥을 누르면 닫기
+  if (e.target.closest('[data-reset-filter]')) { setExtFilter(''); return; }
+  var gt = e.target.closest('[data-group]'); if (gt) { foldedGroups[gt.dataset.group] = !foldedGroups[gt.dataset.group]; render(); return; }
+  var fa = e.target.closest('[data-fold-all]');
+  if (fa) { foldedGroups = {}; if (fa.dataset.foldAll === '1') files.forEach(function (f) { foldedGroups[groupKey(f)] = true; }); render(); return; }
   if (e.target.id === 'clearNew') { e.stopPropagation(); files.forEach(function (f) { f.isNew = false; }); render(); return; }
-  var it = e.target.closest('.item'); if (it) openFile(it.dataset.key);
+  var it = e.target.closest('.item'); if (it) { navStack = []; openFile(it.dataset.key); }
 });
-document.querySelectorAll('.tab').forEach(function (t) {
-  t.onclick = function () {
-    tab = t.dataset.tab;
-    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x === t); });
-    render();
-  };
+$('exPop').addEventListener('change', function (e) { var c = e.target.closest('[data-ex]'); if (c) { setExcluded(c.dataset.ex, c.checked); toggleExPop(true); } });
+$('exPop').addEventListener('click', function (e) {
+  e.stopPropagation();   // 창 안을 누른 것은 '바깥 누르면 닫기'로 넘기지 않음 (내용을 다시 그려도 창이 닫히지 않게)
+  var a = e.target.closest('[data-ex-all]'); if (!a) return;
+  setExcluded(Object.keys(EXT_LABEL), a.dataset.exAll === '1');   // All = 모두 체크, None = 모두 풀기
+  toggleExPop(true);
 });
+function setTab(t) {
+  if (t !== 'all') toggleExPop(false);
+  tab = t;
+  document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x.dataset.tab === t); });
+}
+document.querySelectorAll('.tab').forEach(function (t) { t.onclick = function () { setTab(t.dataset.tab); render(); }; });
+function setExtFilter(ext) {
+  extFilter = ext;
+  document.querySelectorAll('.chip[data-ext]').forEach(function (x) { x.classList.toggle('on', x.dataset.ext === ext); });
+  render();
+}
 document.querySelectorAll('.chip[data-ext]').forEach(function (c) {
-  c.onclick = function () {
-    extFilter = c.dataset.ext;
-    document.querySelectorAll('.chip[data-ext]').forEach(function (x) { x.classList.toggle('on', x === c); });
-    render();
-  };
+  c.onclick = function () { setExtFilter(c.dataset.ext); };
 });
 var qTimer;
+// ===== 최근 검색어 (이 창을 닫으면 사라짐, 어디에도 저장하지 않음) =====
+var qHistory = [], histIndex = -1, HIST_MAX = 10;
+function rememberQuery(v) {
+  v = nfc(String(v || '')).trim(); if (!v) return;
+  qHistory = [v].concat(qHistory.filter(function (x) { return x !== v; })).slice(0, HIST_MAX);
+}
+function showHistory() {
+  var box = $('qHist');
+  if ($('q').value.trim() || !qHistory.length) { box.hidden = true; return; }
+  histIndex = -1;
+  box.innerHTML = '<div class="hhead">최근 검색어<button type="button" id="histClear">모두 지우기</button></div>' +
+    qHistory.map(function (h, i) { return '<button type="button" class="hitem" data-hist="' + i + '">' + esc(h) + '</button>'; }).join('');
+  box.hidden = false;
+}
+function hideHistory() { $('qHist').hidden = true; histIndex = -1; }
+function pickHistory(i) {
+  var v = qHistory[i]; if (v == null) return;
+  $('q').value = v; hideHistory(); clearTimeout(qTimer); applySearch(); $('q').focus();
+}
+function moveHistory(d) {
+  var items = $('qHist').querySelectorAll('.hitem'); if (!items.length) return;
+  histIndex = (histIndex + d + items.length) % items.length;
+  items.forEach(function (b, i) { b.classList.toggle('on', i === histIndex); });
+}
+$('qHist').addEventListener('mousedown', function (e) { e.preventDefault(); });   // 누르는 동안 검색창 포커스 유지
+$('qHist').addEventListener('click', function (e) {
+  if (e.target.closest('#histClear')) { qHistory = []; hideHistory(); return; }
+  var b = e.target.closest('[data-hist]'); if (b) pickHistory(+b.dataset.hist);
+});
+$('q').addEventListener('focus', showHistory);
+$('q').addEventListener('blur', function () { rememberQuery($('q').value); hideHistory(); });
+
+var lastApplied = '';
 function applySearch() {
   query = $('q').value;
-  if (query.trim() && tab !== 'search') {
-    tab = 'search';
-    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x.dataset.tab === 'search'); });
-  }
+  if (!query.trim() && lastApplied.trim()) rememberQuery(lastApplied);   // 검색어를 지우면 직전 검색어를 기억
+  lastApplied = query;
+  if (document.activeElement === $('q')) showHistory();
+  if (query.trim() && tab !== 'search') setTab('search');
   render();
-  if (current) openFile(current);
+  if (current) {
+    var cf = files.get(current);
+    // HTML 화면은 검색어 강조를 하지 않으므로 다시 만들지 않고 안내만 바꿈 (입력할 때마다 화면을 새로 만드는 낭비 방지)
+    if (cf && cf.ext === 'html' && viewMode === 'rendered' && cf.text != null && $('vbody').querySelector('iframe')) setHits(query.trim() ? -1 : 0);
+    else openFile(current);
+  }
 }
 $('q').addEventListener('input', function () { clearTimeout(qTimer); qTimer = setTimeout(applySearch, 250); });
 $('q').addEventListener('compositionend', function () { clearTimeout(qTimer); qTimer = setTimeout(applySearch, 150); });
 $('q').addEventListener('keydown', function (e) {
   if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 엔터는 무시 (두 번 실행 방지)
-  if (e.key === 'Enter') { clearTimeout(qTimer); applySearch(); var first = document.querySelector('.item'); if (first) openFile(first.dataset.key); }
-  if (e.key === 'Escape') { $('q').value = ''; applySearch(); }
+  var histOpen = !$('qHist').hidden;
+  if (histOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); moveHistory(e.key === 'ArrowDown' ? 1 : -1); return; }
+  if (histOpen && e.key === 'Enter' && histIndex >= 0) { e.preventDefault(); pickHistory(histIndex); return; }
+  // 검색어가 있을 때 ↓ / ↑ : 검색창에서 바로 결과 목록으로 넘어가 파일 이동
+  if (!histOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && $('q').value.trim()) {
+    e.preventDefault(); e.stopPropagation(); rememberQuery($('q').value); moveFile(e.key === 'ArrowDown' ? 1 : -1); return;
+  }
+  if (e.key === 'Enter') { clearTimeout(qTimer); applySearch(); rememberQuery($('q').value); var first = listItems()[0]; if (first) { navStack = []; openFile(first.dataset.key); } }
+  if (e.key === 'Escape') { if (histOpen) { hideHistory(); return; } $('q').value = ''; applySearch(); }
 });
 document.addEventListener('keydown', function (e) {
   if (e.key === '/' && document.activeElement !== $('q')) { e.preventDefault(); $('q').focus(); $('q').select(); }
   if (e.key === 'F3') { e.preventDefault(); goHit(e.shiftKey ? -1 : 1); }
+  if (e.key === 'Escape' && !$('exPop').hidden) toggleExPop(false);
+  if (e.altKey && e.key === 'ArrowLeft' && navStack.length) { e.preventDefault(); goBack(); }
+  // 파일 목록에서 ↓ / ↑ : 다음 / 이전 파일 열기 (문서 화면을 눌러 둔 상태에서는 원래대로 화면 스크롤)
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+    var a = document.activeElement;
+    if (a === document.body || a === document.documentElement || (a && a.closest && a.closest('#list'))) {
+      e.preventDefault(); moveFile(e.key === 'ArrowDown' ? 1 : -1);
+    }
+  }
 });
+function listItems() { return Array.from(document.querySelectorAll('#list .item')); }
+function moveFile(d) {
+  var items = listItems(); if (!items.length) return;
+  var i = items.findIndex(function (b) { return b.dataset.key === current; });
+  var n = i < 0 ? (d > 0 ? 0 : items.length - 1) : Math.min(items.length - 1, Math.max(0, i + d));
+  if (n === i) return;
+  var key = items[n].dataset.key;
+  navStack = []; openFile(key);
+  // 목록이 다시 그려졌을 수 있으므로 새로 찾아서 포커스 (계속 방향키로 이동 가능)
+  var b = listItems().find(function (x) { return x.dataset.key === key; });
+  if (b) { b.focus({ preventScroll: true }); b.scrollIntoView({ block: 'nearest' }); }
+}
 $('prevHit').onclick = function () { goHit(-1); };
 $('nextHit').onclick = function () { goHit(1); };
 $('modeBtn').onclick = function () { viewMode = viewMode === 'rendered' ? 'source' : 'rendered'; openFile(current); };
@@ -1193,7 +1656,8 @@ setInterval(function () { if (files.size && tab !== 'search') render(); }, 60000
 
 // ===== 시작 =====
 (async function init() {
-  if (!CAN_WATCH) { $('pickBtn').textContent = '+ 폴더 불러오기'; $('onceBtn').hidden = true; }
+  if (!CAN_WATCH) $('pickBtn').textContent = '+ 폴더 불러오기';
+  applyExcludedUI();
   var saved = CAN_WATCH ? await loadRoots() : [];
   for (var i = 0; i < saved.length; i++) {
     var s = saved[i];
