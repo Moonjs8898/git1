@@ -99,7 +99,7 @@ header {
 .qhist .hitem:hover, .qhist .hitem.on { background: var(--accent-soft); color: var(--accent); }
 main { flex: 1; display: flex; min-height: 0; }
 aside {
-  width: 270px; min-width: 230px; background: var(--panel); border-right: 1px solid var(--line);
+  width: var(--side-w, 270px); min-width: 200px; position: relative; flex: none; background: var(--panel); border-right: 1px solid var(--line);
   display: flex; flex-direction: column; min-height: 0;
 }
 .roots { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; max-height: 30vh; overflow: auto; scrollbar-gutter: stable; }
@@ -205,7 +205,23 @@ svg.fold.shut { transform: rotate(-90deg); }
 .empty { padding: 30px 20px; color: var(--muted); text-align: center; line-height: 1.8; }
 mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
 mark.cur { outline: 2px solid var(--accent); }
-section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+/* 왼쪽 바 넓이 조절 손잡이: 경계선에 마우스를 올리면 파란 선 */
+.grip { position: absolute; top: 0; right: -7px; width: 8px; height: 100%; cursor: col-resize; z-index: 6; touch-action: none; }
+.grip::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: transparent; transition: background .15s; }
+.grip:hover::after, body.resizing .grip::after { background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing iframe { pointer-events: none; }   /* 끄는 도중 HTML 화면이 마우스를 가져가지 않게 */
+/* 왼쪽 바 접힘 (파일 더블클릭) -> 문서 화면 왼쪽 위 떠 있는 단추로 다시 펼침 */
+body.side-shut aside { display: none; }
+.sideOpen {
+  position: absolute; left: 12px; top: 12px; z-index: 6; width: 32px; height: 32px; padding: 0;
+  display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.25);
+}
+.sideOpen:hover { border-color: var(--accent); }
+.sideOpen svg { width: 17px; height: 17px; }
+body.side-shut .vhead { padding-left: 56px; padding-right: 56px; }
 /* 문서 화면: 가운데 종이 한 장처럼 */
 .vhead { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 18px 0; flex-wrap: wrap; }
 .vhead .vtitle { font-weight: 700; font-size: 15px; word-break: break-all; }
@@ -217,7 +233,11 @@ section.viewer { flex: 1; display: flex; flex-direction: column; min-width: 0; m
   border-radius: 6px; box-shadow: 0 2px 14px rgba(0,0,0,.18);
 }
 .vbody > .office { max-width: 1000px; }
-.vbody pre.plain { white-space: pre-wrap; word-break: break-word; margin: 0; font: 13.5px/1.65 Consolas, "D2Coding", "Malgun Gothic", monospace; }
+.vbody pre.plain.sqlv { white-space: pre; overflow-x: auto; }   /* 정렬한 SQL은 줄을 자동으로 꺾지 않음 (기준선 유지) */
+/* SQL 글자 색: 키워드=파랑, 함수=보라, 문자열=초록, 숫자=주황, 주석=회색 기울임 */
+.sqlv .k { color: var(--accent); font-weight: 700; } .sqlv .f { color: var(--md); } .sqlv .s { color: var(--new); }
+.sqlv .n { color: var(--html); } .sqlv .c { color: var(--muted); font-style: italic; }
+.vbody pre.plain { white-space: pre-wrap; word-break: break-word; margin: 0 auto; font: 13.5px/1.65 Consolas, "D2Coding", "Malgun Gothic", monospace; }
 .vbody iframe { width: 100%; height: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .vbody .md { font-size: 15.5px; line-height: 1.95; }   /* 파일 종류 배지(.ext.md)와 구분 */
 .md h1 { font-size: 1.7em; margin-top: 0; } .md h2 { font-size: 1.45em; } .md h3 { font-size: 1.2em; }
@@ -273,6 +293,7 @@ footer {
 @media (max-width: 760px) {
   main { flex-direction: column; }
   aside { width: 100%; height: 45vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .grip { display: none; }
   .vbody { padding: 12px; }
   .vbody > .md, .vbody > pre.plain, .vbody > .office { padding: 20px 18px; }
 }
@@ -291,7 +312,8 @@ footer {
   <button class="theme" id="themeBtn" type="button"></button>
 </header>
 <main>
-  <aside>
+  <aside id="side">
+    <div class="grip" id="sideGrip" title="끌어서 넓이 조절 · 더블클릭 = 기본 넓이"></div>
     <div class="roots" id="roots"></div>
     <div class="tabs">
       <button class="tab on" data-tab="all">전체<span class="cnt" id="cntAll"></span></button>
@@ -312,6 +334,7 @@ footer {
     <div class="list" id="list"></div>
   </aside>
   <section class="viewer">
+    <button class="sideOpen" id="sideOpen" hidden title="목록 펼치기" aria-label="목록 펼치기"></button>
     <div class="vhead" id="vhead" hidden>
       <button class="btn" id="backBtn" hidden title="링크로 들어오기 전 파일로 (Alt+←)">&larr; 뒤로</button>
       <span class="ext" id="vExt"></span>
@@ -358,7 +381,7 @@ var MAX_READ = 5 * 1024 * 1024;   // 5MB 넘는 파일은 내용을 읽지 않�
 var MIN_INTERVAL = 3000;          // 폴더 확인 간격 (최소 3초)
 var RECENT_LIMIT = 50;
 var CAN_WATCH = typeof window.showDirectoryPicker === 'function';
-var STORE_KEY = { rootsFolded: 'docfinder.rootsFolded', filtersFolded: 'docfinder.filtersFolded', excluded: 'docfinder.excluded', theme: 'docfinder.theme', listView: 'docfinder.listView' };   // 이 브라우저에 기억하는 설정 이름
+var STORE_KEY = { rootsFolded: 'docfinder.rootsFolded', filtersFolded: 'docfinder.filtersFolded', excluded: 'docfinder.excluded', theme: 'docfinder.theme', listView: 'docfinder.listView', sideWidth: 'docfinder.sideWidth' };   // 이 브라우저에 기억하는 설정 이름
 
 // ===== 아이콘 (모두 HTML 안에 직접 그림, 외부 파일 없음) =====
 var LINE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
@@ -817,6 +840,7 @@ async function addFolder() {
     try { if (roots[i].handle && await roots[i].handle.isSameEntry(h)) { toast('"' + nfc(h.name) + '" 폴더는 이미 목록에 있습니다.'); return; } } catch (e) {}
   }
   roots.push({ id: newId(), name: nfc(h.name), handle: h, ok: true, scanned: false });
+  setSideShut(false);   // 왼쪽 바를 접어 둔 상태면 펼쳐서 새 폴더가 보이게
   await saveRoots();
   renderRoots();
   kick();
@@ -845,6 +869,7 @@ async function indexStatic(r, markNew, onlyMissing) {
 async function loadStaticFolder(list) {
   var replaceId = reloadTarget; reloadTarget = null;
   if (!list || !list.length) { if (!replaceId) toast('폴더가 비어 있거나 불러오기를 취소했습니다.'); return; }
+  setSideShut(false);
   var first = list[0].webkitRelativePath || list[0].name;
   var rootName = nfc(first.split('/')[0] || '불러온 폴더');
   var r = replaceId ? roots.find(function (x) { return x.id === replaceId; }) : null;
@@ -1545,12 +1570,194 @@ window.addEventListener('message', function (e) {
   followLink(e.data.docfinderLink);
 });
 
+// ===== SQL 꾸며서 보기 (강 정렬 + 앞 쉼표) =====
+// - 키워드 첫 단어의 끝을 한 칸(기준선)에 맞춤: SELECT / FROM / WHERE / AND / ORDER BY ...
+// - 쉼표와 AND·OR는 기준선 아래 줄 앞에, 괄호 안 쿼리는 그 자리에서 새 기준선
+// - 주석·따옴표 안 글자는 그대로. 정렬 결과가 원문과 글자가 다르면(공백·대소문자 제외) 원문을 보여 줌
+var SQL_KW = {}, SQL_FN = {};
+('SELECT FROM WHERE AND OR NOT IN IS NULL LIKE BETWEEN EXISTS AS ON JOIN INNER LEFT RIGHT FULL OUTER CROSS APPLY NATURAL ' +
+ 'UNION ALL INTERSECT EXCEPT MINUS GROUP ORDER BY HAVING ASC DESC DISTINCT TOP LIMIT OFFSET FETCH ONLY ' +
+ 'INSERT INTO VALUES UPDATE SET DELETE MERGE USING MATCHED THEN WHEN ELSE END CASE WITH RECURSIVE ' +
+ 'CREATE TABLE VIEW INDEX DROP ALTER PRIMARY FOREIGN KEY REFERENCES DEFAULT CONSTRAINT UNIQUE TRUNCATE ' +
+ 'BEGIN COMMIT ROLLBACK DECLARE IF ELSIF LOOP RETURN RETURNS FUNCTION PROCEDURE REPLACE TRIGGER OVER PARTITION ' +
+ 'ANY SOME TRUE FALSE START CONNECT PRIOR RETURNING').split(' ').forEach(function (w) { SQL_KW[w] = 1; });
+('COUNT SUM AVG MIN MAX COALESCE NVL NVL2 DECODE CAST CONVERT SUBSTR SUBSTRING TRIM UPPER LOWER LENGTH ROUND ' +
+ 'TO_CHAR TO_DATE TO_NUMBER SYSDATE NOW IFNULL ISNULL ROW_NUMBER RANK DENSE_RANK LEFT RIGHT REPLACE').split(' ').forEach(function (w) { SQL_KW[w] = 1; SQL_FN[w] = 1; });
+var SQL_CLAUSE1 = { SELECT: 1, FROM: 1, WHERE: 1, HAVING: 1, VALUES: 1, LIMIT: 1, OFFSET: 1, FETCH: 1, RETURNING: 1 };
+var SQL_AND_BREAK = { WHERE: 1, HAVING: 1, JOIN: 1, 'START WITH': 1, 'CONNECT BY': 1, MERGE: 1 };   // 이 구역에서만 AND·OR 줄 바꿈
+var SQL_NO_COMMA = { '': 1, LIMIT: 1, OFFSET: 1, FETCH: 1, UNION: 1 };                              // 이 구역의 쉼표는 줄 바꿈 안 함
+var SQL_LIST = { INSERT: 1, VALUES: 1, CREATE: 1 };                                                  // 괄호 목록을 한 줄에 하나씩
+var SQL_NOT_STMT = { FOR: 1, ON: 1, KEY: 1, OF: 1, BEFORE: 1, AFTER: 1, INSTEAD: 1 };               // FOR UPDATE, ON DELETE 등은 새 문장 아님
+var WIDE_RE = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/g;   // 한글 등 두 칸 글자
+function sqlTokens(s) {
+  var re = /(\s+)|(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|([NnEeXxBb]?'(?:[^']|'')*'?)|("(?:[^"]|"")*"?|`[^`]*`?|\[[^\]\r\n]*\]?)|(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+)|(<=|>=|<>|!=|\|\||::|:=|=>)|([A-Za-z_\u0080-\uFFFF@#$:][\w\u0080-\uFFFF@#$]*)|([\s\S])/g;
+  var types = ['', 'ws', 'cmt', 'str', 'qid', 'num', 'op', 'word', 'p'], out = [], m;
+  while ((m = re.exec(s))) {
+    for (var i = 1; i < types.length; i++) if (m[i] !== undefined) { out.push({ v: m[0], t: types[i] }); break; }
+  }
+  return out;
+}
+function formatSql(src) {
+  if (src.length > 1024 * 1024) return null;   // 1MB가 넘으면 원문으로
+  // 공백은 버리되, 앞에 공백(ws)·줄바꿈(nl)이 있었는지는 기억
+  var toks = [], gap = '';
+  sqlTokens(src).forEach(function (x) { if (x.t === 'ws') { gap = x.v; return; } x.ws = !!gap; x.nl = gap.indexOf('\n') >= 0; gap = ''; toks.push(x); });
+  var lines = [], line = [], col = 0, stack, fresh, prev, glue, brk;
+  function vw(s) { var w = s.match(WIDE_RE); return s.length + (w ? w.length : 0); }
+  function spaces(n) { return n > 0 ? new Array(n + 1).join(' ') : ''; }
+  function atStart() { for (var i = 0; i < line.length; i++) if (line[i].v.trim()) return false; return true; }
+  function lineAt(pad) {   // 새 줄을 pad 칸 들여서 시작 (지금 줄이 비어 있으면 그 줄을 다시 씀)
+    pad = Math.max(0, pad);
+    if (!atStart()) lines.push(line);
+    line = pad ? [{ v: spaces(pad) }] : []; col = pad;
+  }
+  function emit(tok, text, cls, space) {
+    if (space && !atStart()) { line.push({ v: ' ' }); col++; }
+    line.push({ v: text, c: cls });
+    col = text.indexOf('\n') >= 0 ? vw(text.slice(text.lastIndexOf('\n') + 1)) : col + vw(text);
+    prev = { v: tok.v, t: tok.t, u: tok.t === 'word' ? tok.v.toUpperCase() : '' };
+    glue = false;
+    if (tok.t !== 'cmt') fresh = false;   // 주석만 나온 동안은 아직 문장 시작
+  }
+  function reset() { stack = [{ k: 'q', r: 5, cl: '', bt: 0, cs: [], first: true }]; fresh = true; prev = null; glue = false; brk = false; }
+  function U(i) { var x = toks[i]; return x && x.t === 'word' ? x.v.toUpperCase() : ''; }
+  function spaceBefore(x) {
+    if (!prev || glue) return false;
+    var pv = prev.v;
+    if (pv === '(' || pv === '.' || pv === '::' || x.v === '.' || x.v === ')' || x.v === ',' || x.v === ';' || x.v === '::') return false;
+    if (x.v === '(') return prev.t === 'word' ? !!(SQL_KW[prev.u] && !SQL_FN[prev.u]) : prev.t !== 'qid';   // 함수 이름 뒤에는 붙임
+    if (x.t === 'qid' && x.v.charAt(0) === '[' && !x.ws) return false;   // arr[1] 처럼 원래 붙어 있던 대괄호
+    return true;
+  }
+  function clauseAt(k, f) {
+    var w = U(k), w1 = U(k + 1), w2 = U(k + 2), p = prev && prev.t === 'word' ? prev.u : '';
+    if (w === 'GROUP' || w === 'ORDER' || w === 'CONNECT') return w1 === 'BY' ? { n: 2, name: w + ' BY' } : null;
+    if (w === 'START') return w1 === 'WITH' ? { n: 2, name: 'START WITH' } : null;
+    if (w === 'JOIN') return { n: 1, name: 'JOIN' };
+    if (w === 'INNER' || w === 'NATURAL') return w1 === 'JOIN' ? { n: 2, name: 'JOIN' } : null;
+    if (w === 'CROSS') return w1 === 'JOIN' || w1 === 'APPLY' ? { n: 2, name: 'JOIN' } : null;
+    if (w === 'OUTER') return w1 === 'APPLY' ? { n: 2, name: 'JOIN' } : null;
+    if (w === 'LEFT' || w === 'RIGHT' || w === 'FULL') return w1 === 'JOIN' ? { n: 2, name: 'JOIN' } : (w1 === 'OUTER' && w2 === 'JOIN' ? { n: 3, name: 'JOIN' } : null);
+    if (w === 'UNION') return { n: w1 === 'ALL' ? 2 : 1, name: 'UNION' };
+    if (w === 'INTERSECT' || w === 'EXCEPT' || w === 'MINUS') return { n: 1, name: 'UNION' };
+    if (w === 'INSERT') return SQL_NOT_STMT[p] ? null : { n: w1 === 'INTO' ? 2 : 1, name: 'INSERT' };
+    if (w === 'MERGE') return { n: w1 === 'INTO' ? 2 : 1, name: 'MERGE' };
+    if (w === 'DELETE') return SQL_NOT_STMT[p] ? null : { n: w1 === 'FROM' ? 2 : 1, name: 'DELETE' };
+    if (w === 'UPDATE') return SQL_NOT_STMT[p] ? null : { n: 1, name: 'UPDATE' };
+    if (w === 'WITH') return fresh || f.first ? { n: 1, name: 'WITH' } : null;   // WITH (NOLOCK) 같은 것은 제외
+    if (w === 'SET') return p === 'CHARACTER' || p === 'CHAR' ? null : { n: 1, name: 'SET' };
+    if (w === 'INTO') return f.cl === 'SELECT' ? { n: 1, name: 'INTO' } : null;
+    if (w === 'CREATE') return { n: 1, name: 'CREATE' };
+    return SQL_CLAUSE1[w] ? { n: 1, name: w } : null;
+  }
+  reset();
+  for (var k = 0; k < toks.length; k++) {
+    var x = toks[k], v = x.v, u = x.t === 'word' ? v.toUpperCase() : '', f = stack[stack.length - 1];
+    // 줄 주석 뒤는 반드시 새 줄 (다음이 주석이어도) - 문장 시작 전이면 맨 앞, 아니면 내용 칸
+    if (brk) { brk = false; lineAt(fresh ? 0 : f.k === 'i' ? f.cc : f.r + 2); }
+    if (x.t === 'cmt') {
+      if (v.indexOf('\n') >= 0) { lineAt(0); emit(x, v, 'c', false); lineAt(0); continue; }   // 여러 줄 주석은 따로 한 줄
+      emit(x, v, 'c', true);
+      if (v.slice(0, 2) === '--') brk = true;
+      continue;
+    }
+    if (v === ';') { emit(x, ';', '', false); lineAt(0); lines.push([]); reset(); continue; }
+    if (x.t === 'word' && u === 'GO' && stack.length === 1 && (x.nl || k === 0)) {   // MSSQL 묶음 구분 GO: 따로 한 줄
+      lineAt(0); emit(x, 'GO', 'k', false); lineAt(0); lines.push([]); reset(); continue;
+    }
+    if (x.t === 'word') {
+      if (f.k === 'q' && !f.cs.length) {
+        var c = clauseAt(k, f);
+        if (c) {
+          var words = []; for (var j = 0; j < c.n; j++) words.push(toks[k + j].v.toUpperCase());
+          if (f.first && stack.length > 1) emit(toks[k + c.n - 1], words.join(' '), 'k', false);   // 괄호 바로 뒤 첫 키워드
+          else {
+            if (f.first) f.r = Math.max(5, words[0].length - 1);
+            lineAt(f.r - words[0].length + 1);
+            emit(toks[k + c.n - 1], words.join(' '), 'k', false);
+          }
+          f.first = false; f.cl = c.name; f.bt = 0; k += c.n - 1;
+          continue;
+        }
+        if ((u === 'AND' || u === 'OR') && SQL_AND_BREAK[f.cl]) {
+          if (u === 'AND' && f.bt) f.bt = 0;   // BETWEEN a AND b 는 그대로
+          else { lineAt(f.r - u.length + 1); emit(x, u, 'k', false); continue; }
+        }
+        if (u === 'BETWEEN') f.bt = 1;
+      }
+      if (u === 'CASE') { emit(x, u, 'k', spaceBefore(x)); f.cs.push(col - 4); continue; }
+      if (f.cs.length && (u === 'WHEN' || u === 'ELSE')) { lineAt(f.cs[f.cs.length - 1] + 2); emit(x, u, 'k', false); continue; }
+      if (f.cs.length && u === 'END') { lineAt(f.cs[f.cs.length - 1]); emit(x, u, 'k', false); f.cs.pop(); continue; }
+      emit(x, SQL_KW[u] ? u : v, SQL_FN[u] && U(k + 1) === '' && toks[k + 1] && toks[k + 1].v === '(' ? 'f' : SQL_KW[u] ? 'k' : '', spaceBefore(x));   // 함수 이름은 따로 색
+      continue;
+    }
+    if (v === '(') {
+      var ni = k + 1; while (ni < toks.length && toks[ni].t === 'cmt') ni++;
+      var nu = U(ni);
+      if (nu === 'SELECT' || nu === 'WITH') {   // 괄호 안 쿼리: 그 자리에서 새 기준선
+        emit(x, '(', '', spaceBefore(x));
+        stack.push({ k: 'q', r: col + Math.max(6, nu.length) - 1, cl: '', bt: 0, cs: [], first: true });
+        continue;
+      }
+      if (f.k === 'q' && !f.cs.length && SQL_LIST[f.cl]) {   // 열 목록·값 목록: 기준선 칸에 '(' 두고 한 줄에 하나씩
+        var commaLine = line.length && line[line.length - 1].v === ',';
+        // VALUES (1, 2), (3, 4) 처럼 여러 줄을 넣으면 한 줄에 한 묶음씩: ( 1, 2 )
+        var close = k, depth = 0;
+        for (; close < toks.length; close++) { if (toks[close].v === '(') depth++; else if (toks[close].v === ')' && --depth === 0) break; }
+        var multiRow = f.cl === 'VALUES' && (commaLine || (toks[close + 1] && toks[close + 1].v === ','));
+        if (!commaLine) lineAt(f.r);
+        emit(x, '(', '', commaLine);
+        stack.push(multiRow ? { k: 'i', cc: col + 1, cs: [], row: true } : { k: 'l', r: f.r, cs: [] });
+        prev = { v: '(L', t: 'p', u: '' };   // '(' 다음 한 칸 띄움
+        continue;
+      }
+      emit(x, '(', '', spaceBefore(x));
+      stack.push({ k: 'i', cc: col, cs: [] });
+      continue;
+    }
+    if (v === ')') {
+      var g = stack.length > 1 ? stack.pop() : null;
+      if (g && g.k === 'l') lineAt(g.r);
+      emit(x, ')', '', !!(g && g.row));   // 한 줄 묶음은 ' )' 로 닫음
+      continue;
+    }
+    if (v === ',') {
+      if (f.k === 'l' || (f.k === 'q' && !f.cs.length && !SQL_NO_COMMA[f.cl])) lineAt(f.r);
+      emit(x, ',', '', false);
+      continue;
+    }
+    if ((v === '-' || v === '+') && x.t === 'p') {   // 부호(-1)는 뒤에 붙임
+      var unary = !prev || prev.v === '(' || prev.v === '(L' || prev.v === ',' || prev.t === 'op' || (prev.t === 'p' && /[=<>*\/+\-%]/.test(prev.v)) ||
+        (prev.t === 'word' && SQL_KW[prev.u] && prev.u !== 'END' && prev.u !== 'NULL');
+      emit(x, v, '', spaceBefore(x));
+      if (unary) glue = true;
+      continue;
+    }
+    emit(x, v, x.t === 'str' ? 's' : x.t === 'num' ? 'n' : '', spaceBefore(x));
+  }
+  lines.push(line);
+  // 줄 만들기: 앞뒤 빈 줄과 연속 빈 줄 정리
+  var html = [], plain = [], blank = true;
+  lines.forEach(function (ln) {
+    var p = ln.map(function (s) { return s.v; }).join('').replace(/\s+$/, '');
+    if (!p) { if (!blank) { html.push(''); plain.push(''); } blank = true; return; }
+    blank = false;
+    plain.push(p);
+    html.push(ln.map(function (s) { return s.c ? '<span class="' + s.c + '">' + esc(s.v) + '</span>' : esc(s.v); }).join('').replace(/\s+$/, ''));
+  });
+  while (plain.length && !plain[plain.length - 1]) { plain.pop(); html.pop(); }
+  // 안전 확인: 공백·대소문자를 빼고 원문과 글자가 같아야 함
+  var squash = function (s) { return s.replace(/\s+/g, '').toUpperCase(); };
+  if (squash(plain.join('\n')) !== squash(src)) return null;
+  return html.join('\n');
+}
+
 // ===== 파일 보기 =====
 function openFile(key, keepScroll) {
   var f = files.get(key); if (!f) return;
   var body = $('vbody');
   var scroll = keepScroll ? body.scrollTop : 0;
-  if (current !== key) viewMode = 'rendered';
+  if (current !== key) viewMode = f.ext === 'sql' ? 'source' : 'rendered';   // SQL은 원문이 기본, [꾸며서 보기]로 정렬
   current = key;
   var fg = revealFile(f);   // 접힌 폴더의 파일을 열면(검색·링크 등) 그 폴더는 펼침
   if (f.isNew || (fg && tab === 'all')) { f.isNew = false; render(); }
@@ -1561,7 +1768,7 @@ function openFile(key, keepScroll) {
   $('vExt').className = 'ext ' + f.ext; $('vExt').textContent = f.ext.toUpperCase();
   $('vTitle').textContent = f.name;
   $('vInfo').textContent = f.folder + ' · 수정 ' + fmtFull(f.lastModified) + ' · ' + fmtSize(f.size);
-  var canToggle = (f.ext === 'md' || f.ext === 'html') && f.text != null;   // TXT·SQL은 원문만
+  var canToggle = (f.ext === 'md' || f.ext === 'html' || f.ext === 'sql') && f.text != null;   // TXT는 원문만
   $('modeBtn').hidden = !canToggle;
   $('modeBtn').textContent = viewMode === 'rendered' ? '원문 보기' : (f.ext === 'html' ? '화면으로 보기' : '꾸며서 보기');
 
@@ -1587,6 +1794,12 @@ function openFile(key, keepScroll) {
   var el;
   if (OFFICE[f.ext]) { el = document.createElement('div'); el.className = 'office'; el.innerHTML = f.officeHtml; }   // 글자는 모두 esc 처리됨
   else if (f.ext === 'md' && viewMode === 'rendered') { el = document.createElement('div'); el.className = 'md'; el.innerHTML = renderMarkdown(f.text); }
+  else if (f.ext === 'sql' && viewMode === 'rendered') {
+    if (f.sqlHtml === undefined) f.sqlHtml = formatSql(f.text);   // 한 번 정렬한 결과는 기억 (파일이 바뀌면 새로 읽으며 지워짐)
+    el = document.createElement('pre'); el.className = 'plain sqlv';
+    if (f.sqlHtml != null) el.innerHTML = f.sqlHtml;   // 글자는 모두 esc 처리됨
+    else { el.textContent = f.text; toast('이 SQL은 정렬하지 못해 원문으로 보여 줍니다.'); }
+  }
   else { el = document.createElement('pre'); el.className = 'plain'; el.textContent = f.text; }
   // 엑셀이 길어서 화면에 일부 줄만 보일 때: 검색어가 들어 있는 줄을 위에 따로 모아 보여 줌
   if (f.ext === 'xlsx' && query.trim() && f.officeHtml.indexOf('줄만 보여 줍니다') >= 0) {
@@ -1657,6 +1870,59 @@ if (sysDark) {
   if (sysDark.addEventListener) sysDark.addEventListener('change', onSys); else if (sysDark.addListener) sysDark.addListener(onSys);
 }
 renderTheme();
+
+// ===== 왼쪽 바: 경계선을 끌어 넓이 조절 (넓이는 저장), 파일 더블클릭으로 접기 =====
+var SIDE_MIN = 200, SIDE_DEFAULT = 270;
+function sideMax() { return Math.max(SIDE_MIN, Math.floor(window.innerWidth / 2)); }
+function setSideWidth(w) {
+  w = Math.round(Math.min(sideMax(), Math.max(SIDE_MIN, w)));
+  $('side').style.setProperty('--side-w', w + 'px');
+  placeExPop();
+  return w;
+}
+var sideWidth = SIDE_DEFAULT;
+try { sideWidth = parseInt(localStorage.getItem(STORE_KEY.sideWidth), 10) || SIDE_DEFAULT; } catch (e) {}
+setSideWidth(sideWidth);
+window.addEventListener('resize', function () { setSideWidth(sideWidth); });   // 창을 줄이면 화면 절반을 넘지 않게 (저장값은 그대로)
+(function () {
+  var grip = $('sideGrip'), drag = null;
+  grip.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);   // HTML 화면(iframe) 위로 지나가도 계속 끌 수 있게
+    drag = { x: e.clientX, w: $('side').getBoundingClientRect().width };
+    document.body.classList.add('resizing');
+  });
+  grip.addEventListener('pointermove', function (e) { if (drag) sideWidth = setSideWidth(drag.w + e.clientX - drag.x); });
+  function end() {
+    if (!drag) return;
+    drag = null; document.body.classList.remove('resizing');
+    try { localStorage.setItem(STORE_KEY.sideWidth, sideWidth); } catch (e) {}
+  }
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+  grip.addEventListener('dblclick', function () {   // 기본 넓이로
+    sideWidth = setSideWidth(SIDE_DEFAULT);
+    try { localStorage.removeItem(STORE_KEY.sideWidth); } catch (e) {}
+  });
+})();
+var ICON_SIDE = LINE_SVG + '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M13 10l2 2-2 2"/></svg>';
+$('sideOpen').innerHTML = ICON_SIDE;
+function setSideShut(shut) {
+  if (document.body.classList.contains('side-shut') === shut) return;   // 이미 그 상태면 아무것도 안 함
+  document.body.classList.toggle('side-shut', shut);
+  $('sideOpen').hidden = !shut;
+  if (shut) { toggleExPop(false); return; }
+  var on = document.querySelector('#list .item.on');   // 펼치면 지금 연 파일이 보이게
+  if (on) on.scrollIntoView({ block: 'nearest' });
+}
+$('sideOpen').onclick = function () { setSideShut(false); };
+// 목록의 파일을 더블클릭: 첫 번째 누름에서 이미 열렸으므로 왼쪽 바만 접음
+$('list').addEventListener('dblclick', function (e) {
+  if (!e.target.closest('.item')) return;
+  var sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();   // 더블클릭으로 선택된 글자 지우기
+  setSideShut(true);
+});
 $('dirInput').addEventListener('change', function () { loadStaticFolder(this.files); });
 document.addEventListener('click', function (e) {
   var rm = e.target.closest('[data-remove]'); if (rm) { removeFolder(rm.dataset.remove); return; }
@@ -1743,6 +2009,7 @@ function applySearch() {
   query = $('q').value;
   if (!query.trim() && lastApplied.trim()) rememberQuery(lastApplied);   // 검색어를 지우면 직전 검색어를 기억
   lastApplied = query;
+  if (query.trim()) setSideShut(false);   // 접힌 상태에서 검색하면 결과 목록이 보이게 펼침
   if (document.activeElement === $('q')) showHistory();
   if (query.trim() && tab !== 'search') setTab('search');
   render();
