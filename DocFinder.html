@@ -222,6 +222,22 @@ body.side-shut aside { display: none; }
 .sideOpen:hover { border-color: var(--accent); }
 .sideOpen svg { width: 17px; height: 17px; }
 body.side-shut .vhead { padding-left: 56px; padding-right: 56px; }
+/* 문서 안 찾기 (Ctrl+F): 문서 오른쪽 위에 떠 있는 작은 창 */
+.findbar {
+  position: absolute; right: 24px; top: 52px; z-index: 7; display: flex; align-items: center; gap: 2px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 9px; padding: 4px 5px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
+}
+.findbar input { width: 180px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; padding: 3px 8px; outline: none; }
+.findbar input:focus { border-color: var(--accent); }
+.findbar .fcnt { font-size: 12px; color: var(--muted); min-width: 54px; text-align: center; white-space: nowrap; }
+.findbar .fcnt.none { color: var(--danger); }
+.findbar button { width: 26px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+.findbar button:hover { background: var(--bg); color: var(--text); }
+.findbar button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.findbar svg { width: 15px; height: 15px; }
+.fm { background: #ea580c; color: #fff; border-radius: 2px; }   /* 찾은 곳 (위 검색창 강조와 다른 색) */
+.fm.cur { background: #facc15; color: #1c2230; box-shadow: 0 0 0 2px #facc15; }   /* 지금 위치 */
+
 /* 문서 화면: 가운데 종이 한 장처럼 */
 .vhead { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 18px 0; flex-wrap: wrap; }
 .vhead .vtitle { font-weight: 700; font-size: 15px; word-break: break-all; }
@@ -345,6 +361,14 @@ footer {
       <button class="btn" id="prevHit" hidden title="이전 (Shift+F3)">이전</button>
       <button class="btn" id="nextHit" hidden title="다음 (F3)">다음</button>
       <button class="btn" id="modeBtn" hidden></button>
+    </div>
+    <div class="findbar" id="findBar" hidden>
+      <input id="findQ" type="text" placeholder="문서 안에서 찾기" autocomplete="off" spellcheck="false">
+      <span class="fcnt" id="findCnt"></span>
+      <button id="findPrev" type="button" title="이전 (Shift+Enter)" aria-label="이전"></button>
+      <button id="findNext" type="button" title="다음 (Enter)" aria-label="다음"></button>
+      <button id="findCase" type="button" title="대소문자 구분" aria-label="대소문자 구분">Aa</button>
+      <button id="findClose" type="button" title="닫기 (Esc)" aria-label="닫기"></button>
     </div>
     <div class="vbody" id="vbody" tabindex="-1"></div>
   </section>
@@ -897,6 +921,7 @@ async function loadStaticFolder(list) {
 // 열린 파일 닫기 (삭제됐거나 폴더를 뺀 경우)
 function closeCurrent(msg) {
   current = null; navStack = []; updateNav(); $('vhead').hidden = true;
+  if (findOpen()) hideFind();   // 찾을 문서가 없어졌으므로 찾기 창도 닫음
   if (msg) $('vbody').innerHTML = '<div class="welcome">' + msg + '</div>';
 }
 // 목록에서 뺀 폴더의 파일 정리 (폴더를 읽는 도중에 뺀 경우 포함)
@@ -1923,6 +1948,96 @@ $('list').addEventListener('dblclick', function (e) {
   var sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();   // 더블클릭으로 선택된 글자 지우기
   setSideShut(true);
 });
+
+// ===== 문서 안 찾기 (Ctrl+F) =====
+// 지금 보고 있는 문서에서만 찾음. 글자 색 구분(SQL 등)으로 나뉜 글자도 이어서 찾음
+function isTyping() { var a = document.activeElement; return !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)); }
+var findIndex = 0, findCase = false, findTimer;
+$('findPrev').innerHTML = LINE_SVG + '<path d="M6 15l6-6 6 6"/></svg>';
+$('findNext').innerHTML = LINE_SVG + '<path d="M6 9l6 6 6-6"/></svg>';
+$('findClose').innerHTML = LINE_SVG + '<path d="M6 6l12 12M18 6L6 18"/></svg>';
+function findOpen() { return !$('findBar').hidden; }
+function clearFind() {
+  $('vbody').querySelectorAll('span.fm').forEach(function (s) {
+    var p = s.parentNode; p.replaceChild(document.createTextNode(s.textContent), s); p.normalize();
+  });
+}
+// 찾은 곳 칠하기. keep: 지금 위치 번호를 유지 (파일 내용이 다시 그려질 때)
+function findApply(keep) {
+  clearFind();
+  var cnt = $('findCnt'), term = $('findQ').value;
+  cnt.classList.remove('none');
+  if (!findOpen() || !term) { cnt.textContent = ''; return; }
+  var body = $('vbody'), nodes = [], full = '', starts = [];
+  var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
+  while (walker.nextNode()) { starts.push(full.length); nodes.push(walker.currentNode); full += walker.currentNode.nodeValue; }
+  var hay = findCase ? full : full.toLowerCase(), needle = findCase ? term : term.toLowerCase();
+  var hits = [], pos = 0;
+  while (hits.length < 5000 && (pos = hay.indexOf(needle, pos)) >= 0) { hits.push(pos); pos += needle.length; }
+  if (!hits.length) { cnt.textContent = '없음'; cnt.classList.add('none'); return; }
+  // 찾은 곳마다 걸친 글자 조각들을 계산한 뒤, 뒤에서부터 감싸기 (앞쪽 위치가 바뀌지 않게)
+  var segs = [], ni = 0;
+  hits.forEach(function (h, i) {
+    var end = h + needle.length;
+    while (ni < nodes.length - 1 && starts[ni + 1] <= h) ni++;
+    for (var j = ni; j < nodes.length && starts[j] < end; j++) {
+      var s = Math.max(h, starts[j]) - starts[j], e = Math.min(end, starts[j] + nodes[j].nodeValue.length) - starts[j];
+      if (e > s) segs.push({ n: nodes[j], s: s, e: e, i: i });
+    }
+  });
+  for (var k = segs.length - 1; k >= 0; k--) {
+    var g = segs[k], mid = g.n.splitText(g.s); mid.splitText(g.e - g.s);
+    var sp = document.createElement('span'); sp.className = 'fm'; sp.dataset.i = g.i;
+    mid.parentNode.replaceChild(sp, mid); sp.appendChild(mid);
+  }
+  findIndex = keep ? Math.min(findIndex, hits.length - 1) : 0;
+  findGo(0, hits.length, keep);
+}
+function findGo(delta, total, noScroll) {
+  var spans = $('vbody').querySelectorAll('span.fm'); if (!spans.length) return;
+  total = total || +spans[spans.length - 1].dataset.i + 1;
+  findIndex = (findIndex + delta + total) % total;
+  var first = null;
+  spans.forEach(function (s) { var on = +s.dataset.i === findIndex; s.classList.toggle('cur', on); if (on && !first) first = s; });
+  if (first && !noScroll) first.scrollIntoView({ block: 'center', inline: 'nearest' });
+  $('findCnt').textContent = (findIndex + 1) + ' / ' + total + (total >= 5000 ? '+' : '');
+}
+function showFind() {
+  var f = files.get(current); if (!f || f.text == null) return false;
+  if (f.ext === 'html' && viewMode === 'rendered') { viewMode = 'source'; openFile(current, true); }   // HTML 화면 안은 찾을 수 없어 원문으로
+  var sel = String(window.getSelection ? window.getSelection() : '').trim();
+  if (sel && sel.length <= 100 && sel.indexOf('\n') < 0) $('findQ').value = sel;   // 선택한 글자로 바로 찾기
+  $('findBar').hidden = false;
+  $('findQ').focus(); $('findQ').select();
+  findApply(false);
+  return true;
+}
+function hideFind() { $('findBar').hidden = true; clearFind(); $('vbody').focus({ preventScroll: true }); }
+$('findQ').addEventListener('input', function () { clearTimeout(findTimer); findTimer = setTimeout(function () { findApply(false); }, 120); });
+$('findQ').addEventListener('keydown', function (e) {
+  if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 Enter 무시
+  if (e.key === 'Enter') { e.preventDefault(); clearTimeout(findTimer); if (!$('vbody').querySelector('span.fm')) findApply(false); else findGo(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideFind(); }
+});
+$('findPrev').onclick = function () { findGo(-1); };
+$('findNext').onclick = function () { findGo(1); };
+$('findCase').onclick = function () { findCase = !findCase; this.classList.toggle('on', findCase); findApply(false); $('findQ').focus(); };
+$('findClose').onclick = hideFind;
+// 찾기 창이 열린 채 다른 파일을 열거나 내용이 다시 그려지면 같은 글자로 다시 찾기
+var openFileBase = openFile;
+openFile = function (key, keepScroll) {
+  var same = key === current;
+  openFileBase(key, keepScroll);
+  if (!findOpen()) return;
+  var f = files.get(current);
+  if (f && f.ext === 'html' && viewMode === 'rendered') { hideFind(); return; }   // HTML 화면으로 보기에서는 찾을 수 없음
+  findApply(same);
+};
+document.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+    if (showFind()) e.preventDefault();   // 연 파일이 없으면 크롬 기본 찾기
+  } else if (e.key === 'Escape' && findOpen() && !isTyping()) hideFind();
+}, true);
 $('dirInput').addEventListener('change', function () { loadStaticFolder(this.files); });
 document.addEventListener('click', function (e) {
   var rm = e.target.closest('[data-remove]'); if (rm) { removeFolder(rm.dataset.remove); return; }
@@ -2035,7 +2150,7 @@ $('q').addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { if (histOpen) { hideHistory(); return; } $('q').value = ''; applySearch(); }
 });
 document.addEventListener('keydown', function (e) {
-  if (e.key === '/' && document.activeElement !== $('q')) { e.preventDefault(); $('q').focus(); $('q').select(); }
+  if (e.key === '/' && !isTyping()) { e.preventDefault(); $('q').focus(); $('q').select(); }
   if (e.key === 'F3') { e.preventDefault(); goHit(e.shiftKey ? -1 : 1); }
   if (e.key === 'Escape' && !$('exPop').hidden) toggleExPop(false);
   if (e.altKey && e.key === 'ArrowLeft' && navStack.length) { e.preventDefault(); goBack(); }
