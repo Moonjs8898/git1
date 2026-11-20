@@ -10,7 +10,7 @@
   - 이 파일만 복사하면 어느 컴퓨터에서든 똑같이 쓸 수 있습니다. 인터넷 연결이나 설치가 필요 없습니다.
   - 크롬 / 엣지: 폴더 목록 저장 + 3초마다 자동 확인
   - 그 외 브라우저: 폴더를 한 번 불러와서 보기·검색 (자동 확인 없음)
-  - 읽는 파일: MD, TXT, SQL, HTML, 엑셀(.xlsx), 파워포인트(.pptx), 워드(.docx)
+  - 읽는 파일: MD, TXT, SQL, HTML, 엑셀(.xls · .xlsx · .xlsm · .csv), 파워포인트(.pptx), 워드(.docx)
   - 파일은 읽기만 하며 수정·삭제하거나 외부로 보내지 않습니다.
 -->
 <style>
@@ -396,8 +396,9 @@ footer {
 'use strict';
 
 // ===== 설정 =====
-var EXT_GROUP = { md: 'md', markdown: 'md', txt: 'txt', log: 'txt', sql: 'sql', html: 'html', htm: 'html', xlsx: 'xlsx', pptx: 'pptx', docx: 'docx' };
+var EXT_GROUP = { md: 'md', markdown: 'md', txt: 'txt', log: 'txt', sql: 'sql', html: 'html', htm: 'html', xlsx: 'xlsx', xlsm: 'xlsx', xls: 'xlsx', csv: 'xlsx', pptx: 'pptx', docx: 'docx' };   // 엑셀 4가지는 모두 '엑셀'
 var EXT_LABEL = { md: 'MD', txt: 'TXT', sql: 'SQL', html: 'HTML', xlsx: '엑셀', pptx: 'PPT', docx: '워드' };
+function extBadge(ext) { return ext === 'xlsx' ? '엑셀' : ext.toUpperCase(); }   // 파일 종류 배지 글자 (엑셀은 xls·xlsx·xlsm·csv 모두 '엑셀')
 var OFFICE = { xlsx: 1, pptx: 1, docx: 1 };
 var MAX_OFFICE = 50 * 1024 * 1024;   // 엑셀·PPT·워드는 그림이 들어 있어 커도 글자 부분만 읽음
 var SKIP_DIRS = { '.git': 1, 'node_modules': 1, '.dart_tool': 1, '.idea': 1, '.vscode': 1, 'build': 1, 'bin': 1, 'obj': 1, '.gradle': 1, '__pycache__': 1 };
@@ -459,7 +460,7 @@ function htmlToText(html) {
   } catch (e) { return html; }
 }
 
-// ===== 엑셀(.xlsx) / 파워포인트(.pptx) / 워드(.docx) 읽기 =====
+// ===== 엑셀(.xls · .xlsx · .xlsm · .csv) / 파워포인트(.pptx) / 워드(.docx) 읽기 =====
 // 이 파일들은 XML 묶음(ZIP 압축)이라 브라우저에 들어 있는 압축 풀기 기능으로 글자만 꺼냄 (외부 도구 없음)
 var CAN_OFFICE = typeof DecompressionStream === 'function';
 var OFFICE_MAX_ROWS = 2000, OFFICE_MAX_COLS = 60;
@@ -602,14 +603,13 @@ async function readXlsx(z) {
   if (ssXml) { var siRe = /<(?:\w+:)?si>([\s\S]*?)<\/(?:\w+:)?si>|<(?:\w+:)?si\/>/g, sm; while ((sm = siRe.exec(ssXml))) ss.push(sm[1] ? tTexts(sm[1]) : ''); }
   ssXml = null;
   var stDoc = await zipXml(z, stPath), dates = stDoc ? dateStyles(stDoc) : [];
-  var html = '', text = [], textLen = 0, cut = false, sheets = els(wb, 'sheet'), lastYield = performance.now();
+  var book = sheetBook(), sheets = els(wb, 'sheet'), lastYield = performance.now();
   for (var i = 0; i < sheets.length; i++) {
     var name = attr(sheets[i], 'name') || ('시트' + (i + 1)), r = rel[rid(sheets[i])];
     var xml = r ? await zipText(z, r.target) : null;
-    html += '<div class="otitle">시트: ' + esc(name) + '</div>';
-    if (!cut) { text.push('[시트] ' + name); textLen += name.length + 6; }
-    if (!xml || !/<(?:\w+:)?sheetData\b/.test(xml)) { html += '<p class="omuted">글자가 없는 시트입니다 (차트 등)</p>'; continue; }
-    var shown = [], rowCount = 0, maxCol = -1, shownMaxCol = -1, lastRow = 0, searchedRows = 0;
+    book.sheet(name);
+    if (!xml || !/<(?:\w+:)?sheetData\b/.test(xml)) { book.note('글자가 없는 시트입니다 (차트 등)'); continue; }
+    var lastRow = 0;
     var rowRe = /<(?:\w+:)?row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?row>)/g, rm;
     while ((rm = rowRe.exec(xml))) {
       var ra = RE_R.exec(rm[1]), rn = ra ? +ra[1] : lastRow + 1;
@@ -626,36 +626,261 @@ async function readXlsx(z) {
         else if (v != null) { var sa = RE_S.exec(cm[1]); val = dates[sa ? +sa[1] : 0] ? serialDate(v) : fmtNum(v); }
         if (val === '') continue;
         cells[col] = val; line.push(val);
-        if (col > maxCol) maxCol = col;
       }
       if (!line.length) continue;
-      rowCount++;
-      if (shown.length < OFFICE_MAX_ROWS) { shown.push({ n: rn, cells: cells }); for (var k in cells) if (+k > shownMaxCol) shownMaxCol = +k; }
-      if (!cut) {
-        var ln = line.join('\t');
-        if (textLen + ln.length > OFFICE_TEXT_LIMIT) cut = true;
-        else { text.push(ln); textLen += ln.length + 1; searchedRows++; }
-      }
+      book.row(rn, cells, line);
       if (performance.now() - lastYield > 40) { await yieldUI(); lastYield = performance.now(); }   // 큰 파일을 읽는 동안에도 화면이 멈추지 않게
     }
     xml = null;
-    if (!rowCount) { html += '<p class="omuted">빈 시트</p>'; continue; }
-    var showCols = Math.min(shownMaxCol, OFFICE_MAX_COLS - 1), h = '<div class="grid"><table><thead><tr><th></th>';
+  }
+  return book.done();
+}
+
+// 시트 표 만들기 (xlsx · xls · csv 공통): 화면에는 처음 2천 줄·60열, 검색용 글자는 전체(약 2천만 자까지)
+function sheetBook() {
+  var html = '', text = [], textLen = 0, cut = false, s = null;
+  function finish() {
+    if (!s) return;
+    var t = s; s = null;
+    if (!t.rowCount) { html += '<p class="omuted">빈 시트</p>'; return; }
+    var showCols = Math.min(t.shownMaxCol, OFFICE_MAX_COLS - 1), h = '<div class="grid"><table><thead><tr><th></th>';
     for (var c = 0; c <= showCols; c++) h += '<th>' + colName(c) + '</th>';
     h += '</tr></thead><tbody>';
-    shown.forEach(function (row) {
+    t.shown.forEach(function (row) {
       h += '<tr><th>' + row.n + '</th>';
       for (var c3 = 0; c3 <= showCols; c3++) h += '<td>' + esc(row.cells[c3] || '') + '</td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
-    var searchNote = searchedRows < rowCount ? '검색은 처음 ' + searchedRows.toLocaleString() + '줄까지만 합니다 (내용이 너무 많음).' : '검색은 전체 ' + rowCount.toLocaleString() + '줄에서 합니다.';
-    if (rowCount > OFFICE_MAX_ROWS) h += '<p class="omuted">줄이 많아 처음 ' + OFFICE_MAX_ROWS.toLocaleString() + '줄만 보여 줍니다. ' + searchNote + '</p>';
-    else if (searchedRows < rowCount) h += '<p class="omuted">' + searchNote + '</p>';
-    if (maxCol >= OFFICE_MAX_COLS) h += '<p class="omuted">열이 많아 처음 ' + OFFICE_MAX_COLS + '개 열만 보여 줍니다. 검색은 모든 열에서 합니다.</p>';
+    var searchNote = t.searched < t.rowCount ? '검색은 처음 ' + t.searched.toLocaleString() + '줄까지만 합니다 (내용이 너무 많음).' : '검색은 전체 ' + t.rowCount.toLocaleString() + '줄에서 합니다.';
+    if (t.rowCount > OFFICE_MAX_ROWS) h += '<p class="omuted">줄이 많아 처음 ' + OFFICE_MAX_ROWS.toLocaleString() + '줄만 보여 줍니다. ' + searchNote + '</p>';
+    else if (t.searched < t.rowCount) h += '<p class="omuted">' + searchNote + '</p>';
+    if (t.maxCol >= OFFICE_MAX_COLS) h += '<p class="omuted">열이 많아 처음 ' + OFFICE_MAX_COLS + '개 열만 보여 줍니다. 검색은 모든 열에서 합니다.</p>';
     html += h;
   }
-  return { html: html, text: text.join('\n') };
+  return {
+    sheet: function (name) {   // 새 시트 시작 (name이 없으면 제목 없이 - csv)
+      finish();
+      if (name != null) {
+        html += '<div class="otitle">시트: ' + esc(name) + '</div>';
+        if (!cut) { text.push('[시트] ' + name); textLen += name.length + 6; }
+      }
+      s = { shown: [], rowCount: 0, maxCol: -1, shownMaxCol: -1, searched: 0 };
+    },
+    note: function (msg) { s = null; html += '<p class="omuted">' + msg + '</p>'; },
+    row: function (rn, cells, line) {   // cells: {열 번호: 글자}, line: 그 줄 글자들 (왼쪽부터)
+      s.rowCount++;
+      for (var k in cells) if (+k > s.maxCol) s.maxCol = +k;
+      if (s.shown.length < OFFICE_MAX_ROWS) { s.shown.push({ n: rn, cells: cells }); for (var k2 in cells) if (+k2 > s.shownMaxCol) s.shownMaxCol = +k2; }
+      if (!cut) {
+        var ln = line.join('\t');
+        if (textLen + ln.length > OFFICE_TEXT_LIMIT) cut = true;
+        else { text.push(ln); textLen += ln.length + 1; s.searched++; }
+      }
+    },
+    done: function () { finish(); return { html: html, text: text.join('\n') }; }
+  };
+}
+
+// --- CSV (쉼표·탭·세미콜론 구분 글자 파일): 따옴표 안의 쉼표·줄바꿈 처리, 한글 윈도우 인코딩 자동 판별 ---
+async function readCsv(str) {
+  var s = str, n = s.length, nl = s.indexOf('\n'), first = s.slice(0, nl < 0 ? Math.min(n, 4096) : nl);
+  var count = function (ch) { return first.split(ch).length - 1; }, d = ',';
+  if (count('\t') > count(d)) d = '\t';
+  if (count(';') > count(d)) d = ';';
+  var book = sheetBook(); book.sheet(null);
+  var i = 0, row = [], f = '', q = false, rn = 0, lastYield = performance.now();
+  function endRow() {
+    rn++;
+    var cells = {}, line = [];
+    for (var c = 0; c < row.length; c++) if (row[c] !== '') { cells[c] = row[c]; line.push(row[c]); }
+    if (line.length) book.row(rn, cells, line);
+    row = [];
+  }
+  while (i < n) {
+    var ch = s[i];
+    if (q) {   // 따옴표 안: "" 는 따옴표 하나
+      if (ch === '"') { if (s[i + 1] === '"') { f += '"'; i += 2; } else { q = false; i++; } continue; }
+      var j = s.indexOf('"', i); if (j < 0) j = n;
+      f += s.slice(i, j); i = j; continue;
+    }
+    if (ch === '"' && f === '') { q = true; i++; continue; }
+    if (ch === d) { row.push(f); f = ''; i++; continue; }
+    if (ch === '\r' || ch === '\n') {
+      row.push(f); f = ''; endRow();
+      i += ch === '\r' && s[i + 1] === '\n' ? 2 : 1;
+      if (rn % 2000 === 0 && performance.now() - lastYield > 40) { await yieldUI(); lastYield = performance.now(); }
+      continue;
+    }
+    var k = i + 1; while (k < n && s[k] !== d && s[k] !== '\n' && s[k] !== '\r' && s[k] !== '"') k++;
+    f += s.slice(i, k); i = k;
+  }
+  if (f !== '' || row.length) { row.push(f); endRow(); }
+  return book.done();
+}
+
+// --- 옛 엑셀 (.xls, 97~2003): 복합 문서(OLE) 안의 Workbook 흐름을 꺼내 BIFF8 기록을 읽음 ---
+function cfbStream(buf, names) {   // OLE 파일에서 이름이 names 중 하나인 흐름(stream)을 꺼냄. 없으면 null
+  var b = new Uint8Array(buf), dv = new DataView(buf), END = 0xFFFFFFFA;
+  var u16 = function (p) { return dv.getUint16(p, true); }, u32 = function (p) { return dv.getUint32(p, true); };
+  var ss = 1 << u16(30), mss = 1 << u16(32), nFat = u32(44), dirStart = u32(48), cutoff = u32(56), miniFatStart = u32(60), difSec = u32(68);
+  if (ss !== 512 && ss !== 4096) throw new Error('drm');
+  var at = function (sec) { return (sec + 1) * ss; };
+  var fatSecs = [], i, v, guard = 0;
+  for (i = 0; i < 109 && fatSecs.length < nFat; i++) { v = u32(76 + i * 4); if (v < END) fatSecs.push(v); }
+  while (fatSecs.length < nFat && difSec < END && at(difSec) + ss <= b.length && guard++ < 10000) {   // 109개가 넘으면 추가 목록(DIFAT)
+    for (i = 0; i < ss / 4 - 1 && fatSecs.length < nFat; i++) { v = u32(at(difSec) + i * 4); if (v < END) fatSecs.push(v); }
+    difSec = u32(at(difSec) + ss - 4);
+  }
+  var per = ss / 4, fat = new Uint32Array(fatSecs.length * per);
+  fatSecs.forEach(function (sec, k) { var o = at(sec); if (o + ss > b.length) throw new Error('drm'); for (var t = 0; t < per; t++) fat[k * per + t] = u32(o + t * 4); });
+  function chain(start, table) { var out = [], sec = start, g = 0; while (sec < END && sec < table.length && g++ < table.length) { out.push(sec); sec = table[sec]; } return out; }
+  function readChain(start, size) {
+    var secs = chain(start, fat), out = new Uint8Array(secs.length * ss);
+    secs.forEach(function (sec, k) { var o = at(sec); out.set(b.subarray(o, Math.min(o + ss, b.length)), k * ss); });
+    return size != null ? out.subarray(0, Math.min(size, out.length)) : out;
+  }
+  var dir = readChain(dirStart), dd = new DataView(dir.buffer, dir.byteOffset, dir.byteLength), root = null, found = null;
+  for (var e = 0; e + 128 <= dir.length; e += 128) {
+    var nl = dd.getUint16(e + 64, true), type = dir[e + 66], nm = '';
+    if (!type || nl < 2 || nl > 64) continue;
+    for (var c = 0; c < nl / 2 - 1; c++) nm += String.fromCharCode(dd.getUint16(e + c * 2, true));
+    var ent = { start: dd.getUint32(e + 116, true), size: dd.getUint32(e + 120, true) };
+    if (type === 5) root = ent;
+    else if (type === 2 && !found && names.indexOf(nm) >= 0) found = ent;
+  }
+  if (!found) return null;
+  if (found.size >= cutoff || !root) return readChain(found.start, found.size);
+  // 작은 흐름은 미니 저장 공간에서 꺼냄
+  var mini = readChain(root.start, root.size), mf = readChain(miniFatStart), md = new DataView(mf.buffer, mf.byteOffset, mf.byteLength);
+  var mtab = new Uint32Array(mf.length / 4); for (i = 0; i < mtab.length; i++) mtab[i] = md.getUint32(i * 4, true);
+  var ms = chain(found.start, mtab), out = new Uint8Array(ms.length * mss);
+  ms.forEach(function (sec, k) { out.set(mini.subarray(sec * mss, sec * mss + mss), k * mss); });
+  return out.subarray(0, found.size);
+}
+function rkNum(dv, p) {   // RK: 엑셀이 숫자를 4바이트로 줄여 저장한 값
+  var rk = dv.getInt32(p, true), v;
+  if (rk & 2) v = rk >> 2;
+  else { var t = new DataView(new ArrayBuffer(8)); t.setInt32(4, rk & -4, true); v = t.getFloat64(0, true); }
+  return rk & 1 ? v / 100 : v;
+}
+async function readXls(w) {
+  var dv = new DataView(w.buffer, w.byteOffset, w.byteLength), n = w.length;
+  var u16 = function (p) { return dv.getUint16(p, true); };
+  function chars(p, cnt, high) {   // 글자 읽기 (high: 2바이트 글자, 아니면 1바이트)
+    if (high) return new TextDecoder('utf-16le').decode(w.subarray(p, p + cnt * 2));
+    var out = ''; for (var k = 0; k < cnt; k += 8192) out += String.fromCharCode.apply(null, w.subarray(p + k, p + Math.min(cnt, k + 8192)));
+    return out;
+  }
+  function xlStr(p, lenBytes) { var cnt = lenBytes === 1 ? w[p] : u16(p); return chars(p + lenBytes + 1, cnt, w[p + lenBytes] & 1); }
+  if (n < 8 || u16(0) !== 0x809) throw new Error('drm');
+  if (u16(4) !== 0x600) throw new Error('oldxls');   // BIFF8(엑셀 97 이후)만 읽음
+  // 1) 통합 문서 정보: 시트 목록 · 공유 글자(SST) · 서식(날짜 구분용)
+  var p = 0, sheets = [], sst = [], fmts = {}, xfs = [];
+  while (p + 4 <= n) {
+    var t = u16(p), len = u16(p + 2), d = p + 4;
+    if (t === 0x2F) throw new Error('password');   // FILEPASS: 열기 암호
+    if (t === 0x85 && w[d + 5] === 0) sheets.push({ off: dv.getUint32(d, true), name: xlStr(d + 6, 1) });   // 일반 시트만
+    else if (t === 0xFC) sst = readSst(p);
+    else if (t === 0x41E) fmts[u16(d)] = xlStr(d + 2, 2);
+    else if (t === 0xE0) xfs.push(u16(d + 2));
+    else if (t === 0x0A) break;
+    p = d + len;
+  }
+  function readSst(start) {   // 공유 글자는 CONTINUE 기록으로 나뉘어 이어질 수 있음
+    var segs = [], q = start;
+    do { var l = u16(q + 2); segs.push([q + 4, q + 4 + l]); q += 4 + l; } while (q + 4 <= n && u16(q) === 0x3C);
+    var si = 0, pos = segs[0][0] + 8, total = dv.getUint32(segs[0][0] + 4, true), out = [];
+    function adv() { while (pos >= segs[si][1] && si < segs.length - 1) { si++; pos = segs[si][0]; } }
+    function skip(k) { while (k > 0) { adv(); if (pos >= segs[si][1]) return; var a = Math.min(k, segs[si][1] - pos); pos += a; k -= a; } }
+    for (var x = 0; x < total; x++) {
+      adv(); if (pos + 3 > segs[si][1]) break;
+      var cnt = u16(pos), fl = w[pos + 2]; pos += 3;
+      var runs = 0, ext = 0;
+      if (fl & 8) { runs = u16(pos); pos += 2; }
+      if (fl & 4) { ext = dv.getUint32(pos, true); pos += 4; }
+      var high = fl & 1, str = '', left = cnt;
+      while (left > 0) {
+        if (pos >= segs[si][1]) { if (si >= segs.length - 1) break; si++; pos = segs[si][0]; high = w[pos] & 1; pos++; }   // 다음 조각은 글자 크기 표시부터
+        var take = Math.min(left, Math.floor((segs[si][1] - pos) / (high ? 2 : 1)));
+        if (take <= 0) { pos = segs[si][1]; continue; }
+        str += chars(pos, take, high); pos += take * (high ? 2 : 1); left -= take;
+      }
+      skip(runs * 4 + ext);
+      out.push(str);
+    }
+    return out;
+  }
+  function isDate(xf) {
+    var id = xfs[xf]; if (id == null) return false;
+    if (fmts[id] != null) return /[ydhs]/i.test(fmts[id].replace(/"[^"]*"|\[[^\]]*\]|\\./g, ''));
+    return (id >= 14 && id <= 22) || (id >= 45 && id <= 47) || (id >= 27 && id <= 36) || (id >= 50 && id <= 58);
+  }
+  var num = function (v, xf) { return isDate(xf) ? serialDate(v) : fmtNum(v); };
+  // 2) 시트마다 칸 기록 읽기
+  var book = sheetBook(), lastYield = performance.now();
+  for (var si2 = 0; si2 < sheets.length; si2++) {
+    var sh = sheets[si2], rows = {}, pend = null;
+    book.sheet(sh.name);
+    var set = function (r, c, val) { if (val === '' || val == null) return; (rows[r] || (rows[r] = {}))[c] = String(val); };
+    p = sh.off;
+    if (p + 4 > n || u16(p) !== 0x809) { book.note('시트를 읽지 못했습니다'); continue; }
+    p += 4 + u16(p + 2);
+    var recs = 0;
+    while (p + 4 <= n) {
+      var tt = u16(p), ll = u16(p + 2), dd = p + 4;
+      if (tt === 0x0A) break;   // 시트 끝
+      if (tt === 0xFD) set(u16(dd), u16(dd + 2), sst[dv.getUint32(dd + 6, true)]);            // LABELSST
+      else if (tt === 0x203) set(u16(dd), u16(dd + 2), num(dv.getFloat64(dd + 6, true), u16(dd + 4)));   // NUMBER
+      else if (tt === 0x27E) set(u16(dd), u16(dd + 2), num(rkNum(dv, dd + 6), u16(dd + 4)));    // RK
+      else if (tt === 0xBD) {                                                                    // MULRK
+        var r0 = u16(dd), c0 = u16(dd + 2), cntRk = (ll - 6) / 6;
+        for (var m = 0; m < cntRk; m++) set(r0, c0 + m, num(rkNum(dv, dd + 4 + m * 6 + 2), u16(dd + 4 + m * 6)));
+      }
+      else if (tt === 0x204 || tt === 0xD6) set(u16(dd), u16(dd + 2), xlStr(dd + 6, 2));       // LABEL, RSTRING
+      else if (tt === 0x205) set(u16(dd), u16(dd + 2), w[dd + 7] ? '#오류' : (w[dd + 6] ? 'TRUE' : 'FALSE'));   // BOOLERR
+      else if (tt === 0x06) {                                                                    // FORMULA: 계산된 값
+        var fr = u16(dd), fc = u16(dd + 2);
+        if (u16(dd + 12) === 0xFFFF) {
+          var kind = w[dd + 6];
+          if (kind === 0) pend = [fr, fc];   // 글자 결과는 뒤따르는 STRING 기록에
+          else if (kind === 1) set(fr, fc, w[dd + 8] ? 'TRUE' : 'FALSE');
+          else if (kind === 2) set(fr, fc, '#오류');
+        } else set(fr, fc, num(dv.getFloat64(dd + 6, true), u16(dd + 4)));
+      }
+      else if (tt === 0x207 && pend) { set(pend[0], pend[1], xlStr(dd, 2)); pend = null; }    // STRING
+      p = dd + ll;
+      if (++recs % 5000 === 0 && performance.now() - lastYield > 40) { await yieldUI(); lastYield = performance.now(); }
+    }
+    Object.keys(rows).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+      var cells = rows[r], line = Object.keys(cells).map(Number).sort(function (a, b) { return a - b; }).map(function (c) { return cells[c]; });
+      book.row(r + 1, cells, line);
+    });
+  }
+  if (!sheets.length) book.note('시트가 없습니다');
+  return book.done();
+}
+// .xls 이름이지만 실제로는 HTML 표나 글자인 파일 (회사·은행 시스템에서 내려받은 엑셀에 흔함)
+async function readXlsText(buf) {
+  var s = decode(buf);
+  if (/<table[\s>]/i.test(s.slice(0, 200000))) {
+    var doc = new DOMParser().parseFromString(s, 'text/html'), book = sheetBook(), tables = doc.querySelectorAll('table');
+    tables.forEach(function (tb, ti) {
+      book.sheet(tables.length > 1 ? '표 ' + (ti + 1) : null);
+      Array.prototype.forEach.call(tb.rows, function (tr, ri) {
+        var cells = {}, line = [], c = 0;
+        Array.prototype.forEach.call(tr.cells, function (td) {
+          var v = td.textContent.replace(/\s+/g, ' ').trim();
+          if (v) { cells[c] = v; line.push(v); }
+          c += Math.max(1, td.colSpan || 1);
+        });
+        if (line.length) book.row(ri + 1, cells, line);
+      });
+    });
+    return book.done();
+  }
+  if (/[\x00-\x08]/.test(s.slice(0, 4096))) throw new Error('drm');   // 글자 파일도 아니면 보안 파일 등
+  return readCsv(s);
 }
 
 // --- 파워포인트 ---
@@ -774,16 +999,28 @@ function hasUtf16(b, word) {
   }
   return false;
 }
-async function readOffice(buf, ext) {
-  if (!CAN_OFFICE) throw new Error('old');
-  var head = new Uint8Array(buf);
-  // 정상 파일은 ZIP(PK)로 시작. 오피스 열기 암호 파일은 옛 오피스 형식(D0 CF 11 E0) 안에 EncryptedPackage가 들어 있음
-  if (head.length >= 4 && head[0] === 0xD0 && head[1] === 0xCF && head[2] === 0x11 && head[3] === 0xE0) throw new Error(hasUtf16(head, 'EncryptedPackage') ? 'password' : 'drm');
-  if (!(head.length >= 2 && head[0] === 0x50 && head[1] === 0x4B)) throw new Error('drm');   // ZIP이 아니면 문서보안(DRM) 등으로 감싼 파일
-  var z = zipEntries(buf);
-  var r = ext === 'xlsx' ? await readXlsx(z) : ext === 'pptx' ? await readPptx(z) : await readDocx(z);
+// ext: 종류(xlsx·pptx·docx), real: 실제 확장자 (엑셀은 xls·xlsx·xlsm·csv)
+async function readOffice(buf, ext, real) {
+  var r = await readOfficeRaw(buf, ext, real);
   if (r.text.length > OFFICE_TEXT_LIMIT) r.text = r.text.slice(0, OFFICE_TEXT_LIMIT);
   return r;
+}
+async function readOfficeRaw(buf, ext, real) {
+  if (real === 'csv') return readCsv(decode(buf));   // CSV는 글자 파일
+  var head = new Uint8Array(buf);
+  var ole = head.length >= 4 && head[0] === 0xD0 && head[1] === 0xCF && head[2] === 0x11 && head[3] === 0xE0;
+  var zip = head.length >= 2 && head[0] === 0x50 && head[1] === 0x4B;
+  if (real === 'xls' && !zip) {   // 옛 엑셀: OLE 안의 Workbook, 아니면 HTML 표·글자로 저장된 것
+    if (!ole) return readXlsText(buf);
+    var wbs = cfbStream(buf, ['Workbook', 'Book']);
+    if (wbs) return readXls(wbs);
+  }
+  // 정상 파일은 ZIP(PK)로 시작. 오피스 열기 암호 파일은 옛 오피스 형식(D0 CF 11 E0) 안에 EncryptedPackage가 들어 있음
+  if (ole) throw new Error(hasUtf16(head, 'EncryptedPackage') ? 'password' : 'drm');
+  if (!zip) throw new Error('drm');   // ZIP이 아니면 문서보안(DRM) 등으로 감싼 파일
+  if (!CAN_OFFICE) throw new Error('old');
+  var z = zipEntries(buf);
+  return ext === 'xlsx' ? readXlsx(z) : ext === 'pptx' ? readPptx(z) : readDocx(z);
 }
 function officeError(e) {
   var m = e && e.message;
@@ -791,6 +1028,7 @@ function officeError(e) {
   if (m === 'password' || m === 'locked') return '열기 암호가 걸린 파일입니다. 오피스에서 암호를 입력해 열어 주세요. (파일 이름으로는 검색됩니다)';
   if (m === 'drm' || m === 'notzip') return '문서보안(DRM)이 걸렸거나 손상된 파일이라 내용을 읽을 수 없습니다. 회사 보안 프로그램이 설치된 오피스에서 열어 주세요. (파일 이름으로는 검색됩니다)';
   if (m === 'toobig') return '내용이 너무 커서 읽지 않았습니다. (브라우저가 멈추는 것을 막기 위해)';
+  if (m === 'oldxls') return '엑셀 95 이전의 아주 옛날 형식이라 읽을 수 없습니다. 엑셀에서 열어 새 형식(.xlsx)으로 저장해 주세요. (파일 이름으로는 검색됩니다)';
   return '파일 내용을 읽지 못했습니다.';
 }
 
@@ -1080,7 +1318,7 @@ async function addFileInfo(r, path, name, ext, file, handle, isNew) {
   if (file.size <= (OFFICE[ext] ? MAX_OFFICE : MAX_READ)) {
     try {
       if (OFFICE[ext]) {
-        var o = await readOffice(await file.arrayBuffer(), ext);
+        var o = await readOffice(await file.arrayBuffer(), ext, (name.split('.').pop() || '').toLowerCase());
         text = searchText = nfc(o.text); officeHtml = nfc(o.html);
       } else {
         text = nfc(decode(await file.arrayBuffer()));
@@ -1211,7 +1449,7 @@ function lockIcon(kind) {
 function itemHtml(f, extra) {
   extra = extra || {};
   return '<button class="item' + (f.key === current ? ' on' : '') + '" data-key="' + esc(f.key) + '">' +
-    '<span class="ext ' + f.ext + '">' + f.ext.toUpperCase() + '</span>' +
+    '<span class="ext ' + f.ext + '">' + extBadge(f.ext) + '</span>' +
     '<span class="name" title="' + esc(f.folder + '/' + f.name) + '">' + (f.lock ? lockIcon(f.lock) : '') + esc(f.name) + '</span>' +
     (extra.hits ? '<span class="hits">' + extra.hits + '건</span>' : (f.isNew ? '<span class="badge">NEW</span>' : '<span></span>')) +
     '<span class="meta">' + (extra.showFolder ? esc(f.folder) + ' · ' : '') + fmtTime(f.lastModified) + ' · ' + fmtSize(f.size) + '</span>' +
@@ -1303,7 +1541,7 @@ function treeHtml(list) {
     node.files.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); }).forEach(function (f) {
       out += '<button class="item titem' + (f.key === current ? ' on' : '') + '" data-key="' + esc(f.key) + '"' + pad(depth + 1) +
         ' title="' + esc(f.folder + '/' + f.name + '\n수정 ' + fmtFull(f.lastModified) + ' · ' + fmtSize(f.size)) + '">' + guides(depth + 1) +
-        '<span class="tsp"></span><span class="ext ' + f.ext + '">' + f.ext.toUpperCase() + '</span>' +
+        '<span class="tsp"></span><span class="ext ' + f.ext + '">' + extBadge(f.ext) + '</span>' +
         '<span class="name">' + (f.lock ? lockIcon(f.lock) : '') + esc(f.name) + '</span>' + (f.isNew ? '<span class="badge">NEW</span>' : '') + '</button>';
     });
   }
@@ -1790,7 +2028,7 @@ function openFile(key, keepScroll) {
 
   $('vhead').hidden = false;
   updateNav();
-  $('vExt').className = 'ext ' + f.ext; $('vExt').textContent = f.ext.toUpperCase();
+  $('vExt').className = 'ext ' + f.ext; $('vExt').textContent = extBadge(f.ext);
   $('vTitle').textContent = f.name;
   $('vInfo').textContent = f.folder + ' · 수정 ' + fmtFull(f.lastModified) + ' · ' + fmtSize(f.size);
   var canToggle = (f.ext === 'md' || f.ext === 'html' || f.ext === 'sql') && f.text != null;   // TXT는 원문만
@@ -2036,6 +2274,13 @@ openFile = function (key, keepScroll) {
 document.addEventListener('keydown', function (e) {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
     if (showFind()) e.preventDefault();   // 연 파일이 없으면 크롬 기본 찾기
+  } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A') && current && !isTyping()) {
+    // 파일을 연 상태의 Ctrl+A: 화면 전체가 아니라 문서 내용만 선택
+    e.preventDefault();
+    var vb = $('vbody');
+    if (vb.querySelector('iframe')) { toast('HTML 화면은 화면 안을 한 번 누른 뒤 Ctrl+A를 누르세요.'); return; }
+    var range = document.createRange(); range.selectNodeContents(vb);
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
   } else if (e.key === 'Escape' && findOpen() && !isTyping()) hideFind();
 }, true);
 $('dirInput').addEventListener('change', function () { loadStaticFolder(this.files); });
