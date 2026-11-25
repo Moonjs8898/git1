@@ -1757,14 +1757,24 @@ function toDataUrl(file, type) {
 }
 async function buildHtmlDoc(f) {
   var doc = new DOMParser().parseFromString(f.text, 'text/html');
-  // 원본의 스크립트·끼워 넣은 창·자동 이동은 모두 제거 (보기 전용)
-  doc.querySelectorAll('script, noscript, iframe, frame, frameset, object, embed, applet, base, meta[http-equiv]').forEach(function (e) { e.remove(); });
+  // 원본 스크립트·버튼 동작(팁, 펼치기, 탭 등)은 그대로 살림. 끼워 넣은 다른 창·자동 이동·주소 바꾸기만 제거
+  // (칸막이 안에서만 실행되어 바깥 화면·저장소·내 파일에는 접근 못 하고, 새 창도 열 수 없음)
+  doc.querySelectorAll('noscript, iframe, frame, frameset, object, embed, applet, base, meta[http-equiv]').forEach(function (e) { e.remove(); });
   doc.querySelectorAll('*').forEach(function (el) {
     Array.from(el.attributes).forEach(function (a) {
-      if (/^on/i.test(a.name) || /^\s*(javascript|vbscript):/i.test(a.value)) el.removeAttribute(a.name);
+      if (/^\s*vbscript:/i.test(a.value)) el.removeAttribute(a.name);
     });
   });
   var r = roots.find(function (x) { return x.id === f.rootId; }), dir = fileDir(f), total = 0;
+  // 같은 폴더의 스크립트 파일(<script src="app.js">)은 읽어서 안에 넣음 (인터넷 주소 스크립트는 그대로 둠)
+  var scs = doc.querySelectorAll('script[src]');
+  for (var si = 0; si < scs.length; si++) {
+    var s0 = scs[si], sp = localPath(dir, s0.getAttribute('src'));
+    if (!sp) { if (!/^\s*(https?:)?\/\//i.test(s0.getAttribute('src'))) s0.remove(); continue; }
+    var sf = await rootFile(r, sp);
+    if (sf && sf.size <= 5 * 1024 * 1024) { s0.removeAttribute('src'); s0.removeAttribute('integrity'); s0.textContent = decode(await sf.arrayBuffer()).replace(/<\/script/gi, '<\\/script'); }
+    else s0.remove();
+  }
   var links = doc.querySelectorAll('link[href]');
   for (var i = 0; i < links.length; i++) {
     var l = links[i];
@@ -1784,32 +1794,59 @@ async function buildHtmlDoc(f) {
     } else im.removeAttribute('src');
     im.removeAttribute('srcset');
   }
-  var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   var head = doc.head || doc.documentElement.insertBefore(doc.createElement('head'), doc.body);
+  // 문서 스크립트는 실행하되 데이터를 밖으로 보내는 통신(fetch 등)은 막음
   var csp = doc.createElement('meta');
   csp.setAttribute('http-equiv', 'Content-Security-Policy');
-  csp.setAttribute('content', "default-src 'none'; img-src data: http: https:; style-src 'unsafe-inline' http: https:; font-src data: http: https:; media-src data:; script-src 'nonce-" + nonce + "'");
+  csp.setAttribute('content', "default-src 'none'; img-src data: blob: http: https:; style-src 'unsafe-inline' http: https:; font-src data: http: https:; media-src data: blob:; script-src 'unsafe-inline' 'unsafe-eval' http: https:; form-action 'none'");
+  // 칸막이 안에서는 브라우저 저장소를 못 쓰므로, 문서 스크립트가 멈추지 않게 임시 저장소를 먼저 넣어 줌
+  var pre = doc.createElement('script');
+  pre.textContent = '(' + framePrelude.toString() + ')();';
+  head.insertBefore(pre, head.firstChild);
   head.insertBefore(csp, head.firstChild);
   var cs = doc.createElement('meta'); cs.setAttribute('charset', 'utf-8'); head.insertBefore(cs, head.firstChild);
-  var sc = doc.createElement('script'); sc.setAttribute('nonce', nonce);
+  var sc = doc.createElement('script');
   sc.textContent = '(' + frameAgent.toString() + ')();';
   (doc.body || doc.documentElement).appendChild(sc);
   return '<!doctype html>' + doc.documentElement.outerHTML;
 }
+// 칸막이 안 문서 스크립트보다 먼저 실행: 저장소(localStorage 등)를 쓸 수 없는 환경이라 메모리용으로 대신 채움, 새 창은 조용히 무시
+function framePrelude() {
+  function mem() {
+    var d = {};
+    return { getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(d, k) ? d[k] : null; },
+      setItem: function (k, v) { d[String(k)] = String(v); }, removeItem: function (k) { delete d[String(k)]; },
+      clear: function () { d = {}; }, key: function (i) { return Object.keys(d)[i] || null; },
+      get length() { return Object.keys(d).length; } };
+  }
+  ['localStorage', 'sessionStorage'].forEach(function (n) {
+    try { window[n].length; } catch (e) { try { Object.defineProperty(window, n, { value: mem(), configurable: true }); } catch (x) {} }
+  });
+  try { document.cookie; } catch (e) { try { var ck = ''; Object.defineProperty(document, 'cookie', { get: function () { return ck; }, set: function (v) { ck = String(v).split(';')[0]; }, configurable: true }); } catch (x) {} }
+  window.open = function () { return null; };   // 새 창은 열지 않음
+}
 // HTML 화면(칸막이) 안에서만 실행되는 작은 도우미: 링크 누름 알림 · 문서 안 찾기 · 단축키(Ctrl+F, Esc) 전달
 // 칸막이는 바깥 화면과 저장소에 접근할 수 없으므로, 바깥과는 메시지로만 주고받음
 function frameAgent() {
-  document.addEventListener('click', function (e) {
+  // 링크: 문서 스크립트가 먼저 처리하게 두고(팁·탭 버튼 등), 처리하지 않은 링크만 바깥 화면에 알림
+  window.addEventListener('click', function (e) {
+    if (e.defaultPrevented) return;
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null; if (!a) return;
-    var h = a.getAttribute('href') || ''; e.preventDefault();
+    var h = a.getAttribute('href') || '';
+    e.preventDefault();
+    if (/^\s*javascript:/i.test(h)) {   // 스크립트 링크: 크롬이 칸막이 안에서 막으므로 대신 실행
+      var code = h.replace(/^\s*javascript:/i, ''); try { code = decodeURIComponent(code); } catch (x) {}
+      try { (0, eval)(code); } catch (x) { console.error(x); }
+      return;
+    }
     if (h.charAt(0) === '#') {
       var id = h.slice(1); try { id = decodeURIComponent(id); } catch (x) {}
-      var t = document.getElementById(id) || document.getElementsByName(id)[0]; if (t) t.scrollIntoView();
+      var t = id && (document.getElementById(id) || document.getElementsByName(id)[0]); if (t) t.scrollIntoView();
       return;
     }
     parent.postMessage({ docfinderLink: h }, '*');
-  }, true);
-  document.addEventListener('keydown', function (e) {
+  });
+  window.addEventListener('keydown', function (e) {   // 문서 스크립트가 키를 막아도 먼저 받음
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F' || e.code === 'KeyF')) {   // 한글 입력 상태(ㄹ)도 F 키로 인식
       e.preventDefault();
       var sel = String(getSelection()).trim();
@@ -2119,8 +2156,8 @@ function openFile(key, keepScroll) {
   }
   if (f.ext === 'html' && viewMode === 'rendered') {
     var fr = document.createElement('iframe');
-    // 원본 스크립트는 지우고, 링크 누름을 알려 주는 우리 스크립트 하나만 실행 허용 (부모 화면·저장소 접근 불가)
-    fr.setAttribute('sandbox', 'allow-scripts');
+    // 문서 스크립트·알림창(팁)·입력 양식은 허용, 새 창·바깥 화면·저장소 접근은 막음 (allow-popups, allow-same-origin 없음)
+    fr.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms');
     fr.setAttribute('referrerpolicy', 'no-referrer');
     body.appendChild(fr);
     var token = ++htmlToken;
