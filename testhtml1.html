@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVD-01 장비 분석서</title>
+<style>
+:root{
+  --bg:#f4f6fa;--paper:#fff;--line:#dfe3ec;--text:#1c2230;--sub:#5f677c;--soft:#f1f3f8;--accent:#3449b5;
+  --ui:#7c3aed;--ui-soft:#f1eafe;--mes:#3449b5;--mes-soft:#e7ebfb;--eis:#0e7490;--eis-soft:#e0f3f8;
+  --mcs:#9a5b00;--mcs-soft:#fbf0dc;--eq:#0f766e;--eq-soft:#dff4f1;
+  --tbl:#4d5b16;--tbl-soft:#eef4d8;
+  --crit:#c62828;--crit-soft:#fde8e8;--warn:#c2410c;--warn-soft:#fdeedd;--info:#5b6474;--info-soft:#eceff4;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141821;--paper:#1c212d;--line:#2e3545;--text:#e6e9f0;--sub:#9aa3b5;--soft:#232937;--accent:#8ea2ff;
+  --ui:#c4a4ff;--ui-soft:#2f2547;--mes:#8ea2ff;--mes-soft:#262f4f;--eis:#67d1ea;--eis-soft:#163640;
+  --mcs:#f0b75a;--mcs-soft:#3a2e18;--eq:#5fd3c4;--eq-soft:#183532;
+  --tbl:#c4d97a;--tbl-soft:#2c331a;
+  --crit:#ff8a8a;--crit-soft:#3d2020;--warn:#ffab70;--warn-soft:#3b2a1c;--info:#aeb6c6;--info-soft:#272d39;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.7 "Malgun Gothic","맑은 고딕",system-ui,sans-serif}
+.doc{max-width:1180px;margin:24px auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:40px 48px}
+@media (max-width:700px){.doc{margin:0;border-radius:0;border:0;padding:24px 16px}}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:19px;margin:40px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--text)}
+h3{font-size:16px;margin:24px 0 8px}
+p{margin:6px 0}
+a{color:var(--accent)}
+.subtitle{color:var(--sub);margin:0 0 20px}
+table{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:700;white-space:nowrap}
+table.meta th{width:120px}
+table.kv th{width:150px}
+.mono,code{font-family:Consolas,"D2Coding",monospace;font-size:13px}
+code{background:var(--soft);border-radius:4px;padding:0 4px}
+.toc{background:var(--soft);border-radius:8px;padding:12px 18px;margin:20px 0}
+.toc b{display:block;margin-bottom:4px}
+.toc ol{margin:0;padding-left:20px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:8px 12px;border-radius:0 6px 6px 0;margin:10px 0;font-size:14px}
+.lv{font-size:12px;font-weight:700;border-radius:5px;padding:1px 7px;white-space:nowrap}
+.lv.crit{background:var(--crit-soft);color:var(--crit)}
+.lv.warn{background:var(--warn-soft);color:var(--warn)}
+.lv.info{background:var(--info-soft);color:var(--info)}
+
+/* ===== 전체 흐름표 (시스템별 칸) ===== */
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--sub);margin:6px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.flow{margin:0;font-size:12.5px;line-height:1.5;min-width:1000px;table-layout:fixed}
+table.flow th,table.flow td{border-width:0 1px 1px 0;padding:6px 7px}
+table.flow tr>*:last-child{border-right:0}
+table.flow thead th{text-align:center;position:sticky;top:0;font-size:13px}
+table.flow col.c-no{width:118px}
+table.flow th.ui{background:var(--ui-soft);color:var(--ui)}
+table.flow th.mes{background:var(--mes-soft);color:var(--mes)}
+table.flow th.eis{background:var(--eis-soft);color:var(--eis)}
+table.flow th.mcs{background:var(--mcs-soft);color:var(--mcs)}
+table.flow th.eq{background:var(--eq-soft);color:var(--eq)}
+table.flow th.stepname{background:var(--soft);font-size:12.5px;white-space:normal}
+table.flow th.stepname .n{display:inline-block;min-width:22px;text-align:center;background:var(--text);color:var(--paper);border-radius:5px;margin-right:4px}
+table.flow th.stepname small{display:block;font-weight:400;color:var(--sub)}
+table.flow tr.ilkzone>*{background:var(--crit-soft)}
+table.flow tr.ilkzone th.stepname{box-shadow:inset 4px 0 0 var(--crit)}
+table.flow td:empty{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 7px)}
+.it{border-radius:5px;padding:2px 6px;margin:2px 0;border:1px solid transparent}
+.it .k{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:0 4px;margin-right:4px;vertical-align:1px}
+.it.act{background:var(--soft)}
+.it.act .k{background:var(--line);color:var(--text)}
+.it.msg{border-color:var(--line);background:var(--paper)}
+.it.msg .k{background:var(--accent);color:var(--paper)}
+.it.msg b{font-family:Consolas,monospace;font-weight:700}
+.it.msg .to{color:var(--sub);white-space:nowrap}
+.it.tbl{background:var(--tbl-soft);color:var(--tbl)}
+.it.tbl .k{background:var(--tbl);color:var(--paper)}
+.it.tbl code{background:transparent;padding:0;color:inherit;font-weight:700}
+.it.chk{background:var(--paper);border-color:var(--crit);color:var(--crit)}
+.it.chk .k{background:var(--crit);color:var(--paper)}
+.it.chk a{color:var(--crit);font-weight:700}
+.it.ng{background:var(--paper);border:1px dashed var(--crit)}
+.it.ng .k{background:transparent;color:var(--crit);border:1px solid var(--crit)}
+
+.step-detail{margin:14px 0 22px}
+.step-detail h3 .n{display:inline-block;min-width:26px;text-align:center;background:var(--text);color:var(--paper);border-radius:6px;margin-right:6px;font-size:13px}
+.dir{font-size:12px;font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap;background:var(--soft);color:var(--sub)}
+.ilk-ref{font-size:13px;margin-top:4px}
+.foot{margin-top:40px;color:var(--sub);font-size:12px;border-top:1px solid var(--line);padding-top:10px}
+:target{scroll-margin-top:16px}
+.step-detail:target,.ilk:target{outline:2px solid var(--accent);outline-offset:6px;border-radius:6px}
+@media print{body{background:#fff}.doc{border:0;margin:0;padding:0;max-width:none}.scroll{overflow:visible}table.flow{min-width:0}h2{break-after:avoid}.step-detail,.ilk,tr{break-inside:avoid}}
+</style>
+</head>
+<body>
+<article class="doc">
+
+<h1>CVD-01 장비 분석서</h1>
+<p class="subtitle">MES 메시지 처리 과정 및 관련 인터락 정리 (예시 문서)</p>
+
+<table class="meta">
+  <tr><th>문서 번호</th><td>MES-EQ-CVD-01</td><th>버전</th><td>1.1</td></tr>
+  <tr><th>작성일</th><td>2026-11-26</td><th>작성자</th><td>작성자</td></tr>
+  <tr><th>대상 시스템</th><td>UI, MES, EIS, MCS</td><th>상태</th><td>검토 중</td></tr>
+</table>
+
+<nav class="toc">
+  <b>목차</b>
+  <ol>
+    <li><a href="#s1">장비 기본 정보</a></li>
+    <li><a href="#s2">장비 개요</a></li>
+    <li><a href="#s3">메시지 처리 과정</a> (전체 흐름표 · 테이블 상태 변경 · 단계별 상세)</li>
+    <li><a href="#s4">관련 인터락</a></li>
+    <li><a href="#s5">특이 사항</a></li>
+    <li><a href="#s6">변경 이력</a></li>
+  </ol>
+</nav>
+
+<!-- ===================== 1. 기본 정보 ===================== -->
+<h2 id="s1">1. 장비 기본 정보</h2>
+<table class="kv">
+  <tr><th>장비명</th><td>CVD-01</td></tr>
+  <tr><th>장비 타입</th><td>공정 장비 (화학증착)</td></tr>
+  <tr><th>모델</th><td>CVD 화학증착 장비 (예시)</td></tr>
+  <tr><th>위치</th><td>FAB1 / 2층 증착 구역</td></tr>
+  <tr><th>통신 방식</th><td>장비 ↔ EIS: SECS/GEM (HSMS), 장비 ID <code>1</code><br>EIS ↔ MES ↔ MCS: 사내 메시지 (예시)</td></tr>
+  <tr><th>EIS</th><td>EIS-02 서버 (예시)</td></tr>
+  <tr><th>포트</th><td>2개 (LP1, LP2)</td></tr>
+  <tr><th>레시피 관리</th><td>MES 지정 레시피 사용</td></tr>
+  <tr><th>담당</th><td>설비: 증착 설비 파트 / MES: 공정 시스템 파트</td></tr>
+</table>
+
+<!-- ===================== 2. 개요 ===================== -->
+<h2 id="s2">2. 장비 개요</h2>
+<p>웨이퍼 표면에 얇은 막을 입히는 공정 장비이다. 작업자가 MES 화면에서 작업을 시작하면 MCS가 캐리어를 장비로 옮기고, 장비가 도착을 보고하면 MES가 진행 가능 여부를 검증한 뒤 EIS를 통해 장비에 레시피와 시작을 지시한다.</p>
+<p>공정 중에는 온도·압력·가스 유량을 이벤트로 보고받아 기준을 벗어나면 로트를 Hold 한다. 공정이 끝나면 Track Out 후 MCS에 반출을 요청한다.</p>
+<div class="note">이 문서의 값(이벤트 번호, 테이블 이름, 기준값 등)은 모두 예시입니다. 실제 사양서와 DB 구조로 바꿔 주세요.</div>
+
+<!-- ===================== 3. 메시지 처리 과정 ===================== -->
+<h2 id="s3">3. 메시지 처리 과정</h2>
+
+<h3 id="s3-1">3.1 전체 흐름표</h3>
+<p>사용자 시작부터 반출까지 각 시스템이 하는 일을 한 표에 정리했다. 가로는 시스템, 세로는 처리 순서이다.</p>
+<div class="legend">
+  <span><span class="it act"><span class="k">처리</span></span> 화면 조작·내부 처리</span>
+  <span><span class="it msg"><span class="k">메시지</span></span> 다른 시스템으로 보냄 (→ 받는 곳)</span>
+  <span><span class="it tbl"><span class="k">테이블</span></span> DB 상태 변경</span>
+  <span><span class="it chk"><span class="k">인터락</span></span> 인터락 체크</span>
+  <span><span class="it ng"><span class="k">걸리면</span></span> 인터락에 걸렸을 때 처리</span>
+  <span style="background:var(--crit-soft);padding:0 8px;border-radius:4px">붉은 줄</span> 인터락 체크 구간
+</div>
+
+<div class="scroll">
+<table class="flow">
+  <colgroup><col class="c-no"><col><col><col><col><col></colgroup>
+  <thead>
+    <tr><th>단계</th><th class="ui">UI (사용자)</th><th class="mes">MES</th><th class="eis">EIS</th><th class="mcs">MCS</th><th class="eq">장비 (CVD-01)</th></tr>
+  </thead>
+  <tbody>
+    <!-- 1 -->
+    <tr class="ilkzone">
+      <th class="stepname"><a href="#step-1"><span class="n">1</span>작업 시작</a><small>반송 요청</small></th>
+      <td>
+        <div class="it act"><span class="k">처리</span>작업 화면에서 로트·장비 선택 후 [작업 시작]</div>
+        <div class="it msg"><span class="k">메시지</span><b>WorkStartReq</b> <span class="to">→ MES</span></div>
+      </td>
+      <td>
+        <div class="it chk"><span class="k">인터락</span>로트 Hold·장비 Down 여부 확인</div>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT.RESV_EQP</code> 빈값 → CVD-01</div>
+        <div class="it msg"><span class="k">메시지</span><b>TransferReq</b> <span class="to">→ MCS</span></div>
+        <div class="it ng"><span class="k">걸리면</span>화면에 사유 표시, 요청 거부</div>
+      </td>
+      <td></td>
+      <td>
+        <div class="it act"><span class="k">처리</span>스토커 → CVD-01 LP1 반송 시작</div>
+        <div class="it tbl"><span class="k">테이블</span><code>CARRIER.STATE</code> STORED → MOVING</div>
+      </td>
+      <td></td>
+    </tr>
+    <!-- 2 -->
+    <tr>
+      <th class="stepname"><a href="#step-2"><span class="n">2</span>캐리어 도착</a><small>도착 보고</small></th>
+      <td><div class="it act"><span class="k">처리</span>작업 화면에 "도착" 표시</div></td>
+      <td>
+        <div class="it tbl"><span class="k">테이블</span><code>CARRIER.LOC</code> → CVD-01/LP1</div>
+        <div class="it act"><span class="k">처리</span>Track In 대기</div>
+      </td>
+      <td>
+        <div class="it act"><span class="k">처리</span>SECS 메시지를 사내 메시지로 변환</div>
+        <div class="it msg"><span class="k">메시지</span><b>CarrierArrived</b> <span class="to">→ MES</span></div>
+      </td>
+      <td>
+        <div class="it msg"><span class="k">메시지</span><b>TransferCompleted</b> <span class="to">→ MES</span></div>
+        <div class="it tbl"><span class="k">테이블</span><code>CARRIER.STATE</code> MOVING → ON_PORT</div>
+      </td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S6F11</b> CEID 100 CarrierArrived <span class="to">→ EIS</span></div></td>
+    </tr>
+    <!-- 3 -->
+    <tr class="ilkzone">
+      <th class="stepname"><a href="#step-3"><span class="n">3</span>Track In 검증</a><small>진행 가능 확인</small></th>
+      <td>
+        <div class="it act"><span class="k">처리</span>[Track In] 누름 (자동 설정이면 생략)</div>
+        <div class="it msg"><span class="k">메시지</span><b>TrackInReq</b> <span class="to">→ MES</span></div>
+      </td>
+      <td>
+        <div class="it chk"><span class="k">인터락</span><a href="#IL-CVD-01">IL-CVD-01</a> 레시피 일치</div>
+        <div class="it chk"><span class="k">인터락</span><a href="#IL-CVD-02">IL-CVD-02</a> PM 주기 이내</div>
+        <div class="it act"><span class="k">처리</span>조회: <code>LOT</code>, <code>EQP</code>, <code>RECIPE</code></div>
+        <div class="it ng"><span class="k">걸리면</span>Track In 거부, <code>ILK_HIST</code> 기록, 화면 알림</div>
+      </td>
+      <td></td><td></td><td></td>
+    </tr>
+    <!-- 4 -->
+    <tr>
+      <th class="stepname"><a href="#step-4"><span class="n">4</span>레시피 지시</a><small>PP-SELECT</small></th>
+      <td></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>TrackInCmd</b> (LotID, PPID) <span class="to">→ EIS</span></div></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S2F41</b> RCMD PP-SELECT <span class="to">→ 장비</span></div></td>
+      <td></td>
+      <td><div class="it act"><span class="k">처리</span>레시피 불러오기</div></td>
+    </tr>
+    <!-- 5 -->
+    <tr class="ilkzone">
+      <th class="stepname"><a href="#step-5"><span class="n">5</span>지시 응답</a><small>HCACK 확인</small></th>
+      <td><div class="it ng"><span class="k">걸리면</span>작업 화면에 "장비 거부" 알림</div></td>
+      <td>
+        <div class="it chk"><span class="k">인터락</span><a href="#IL-CVD-03">IL-CVD-03</a> 응답 결과 확인</div>
+        <div class="it ng"><span class="k">걸리면</span><code>LOT.HOLD_FLAG</code> N → Y</div>
+      </td>
+      <td>
+        <div class="it chk"><span class="k">인터락</span>HCACK = 0 확인</div>
+        <div class="it msg"><span class="k">메시지</span><b>TrackInCmdReply</b> <span class="to">→ MES</span></div>
+      </td>
+      <td></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S2F42</b> HCACK <span class="to">→ EIS</span></div></td>
+    </tr>
+    <!-- 6 -->
+    <tr>
+      <th class="stepname"><a href="#step-6"><span class="n">6</span>공정 시작</a><small>START · 시작 보고</small></th>
+      <td><div class="it act"><span class="k">처리</span>작업 화면 "진행 중" 표시</div></td>
+      <td>
+        <div class="it msg"><span class="k">메시지</span><b>StartCmd</b> <span class="to">→ EIS</span></div>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT.STATE</code> WAIT → RUN</div>
+        <div class="it tbl"><span class="k">테이블</span><code>EQP.STATE</code> IDLE → RUN</div>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT_HIST</code> TRACK_IN 추가</div>
+      </td>
+      <td>
+        <div class="it msg"><span class="k">메시지</span><b>S2F41</b> RCMD START <span class="to">→ 장비</span></div>
+        <div class="it msg"><span class="k">메시지</span><b>ProcessStarted</b> <span class="to">→ MES</span></div>
+      </td>
+      <td></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S6F11</b> CEID 200 ProcessStarted <span class="to">→ EIS</span></div></td>
+    </tr>
+    <!-- 7 -->
+    <tr class="ilkzone">
+      <th class="stepname"><a href="#step-7"><span class="n">7</span>공정 데이터</a><small>관리 범위 확인</small></th>
+      <td><div class="it ng"><span class="k">걸리면</span>알람 창 표시, 담당자 호출</div></td>
+      <td>
+        <div class="it tbl"><span class="k">테이블</span><code>PROC_DATA</code> 측정값 저장</div>
+        <div class="it chk"><span class="k">인터락</span><a href="#IL-CVD-04">IL-CVD-04</a> 압력 범위 확인</div>
+        <div class="it ng"><span class="k">걸리면</span><code>LOT.HOLD_FLAG</code> N → Y, <code>EQP.STATE</code> RUN → DOWN</div>
+      </td>
+      <td><div class="it msg"><span class="k">메시지</span><b>StepData</b> <span class="to">→ MES</span></div></td>
+      <td></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S6F11</b> CEID 250 StepData <span class="to">→ EIS</span></div></td>
+    </tr>
+    <!-- 8 -->
+    <tr>
+      <th class="stepname"><a href="#step-8"><span class="n">8</span>공정 완료</a><small>완료 보고</small></th>
+      <td></td>
+      <td><div class="it act"><span class="k">처리</span>완료 결과(Result) 확인</div></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>ProcessCompleted</b> <span class="to">→ MES</span></div></td>
+      <td></td>
+      <td><div class="it msg"><span class="k">메시지</span><b>S6F11</b> CEID 300 ProcessCompleted <span class="to">→ EIS</span></div></td>
+    </tr>
+    <!-- 9 -->
+    <tr>
+      <th class="stepname"><a href="#step-9"><span class="n">9</span>Track Out</a><small>다음 공정으로</small></th>
+      <td><div class="it act"><span class="k">처리</span>작업 화면 "완료" 표시 (수동 설정이면 [Track Out])</div></td>
+      <td>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT.STATE</code> RUN → WAIT</div>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT.STEP</code> 증착 → 다음 단계</div>
+        <div class="it tbl"><span class="k">테이블</span><code>EQP.STATE</code> RUN → IDLE, <code>EQP.PM_CNT</code> +25</div>
+        <div class="it tbl"><span class="k">테이블</span><code>LOT_HIST</code> TRACK_OUT 추가</div>
+      </td>
+      <td></td><td></td><td></td>
+    </tr>
+    <!-- 10 -->
+    <tr class="ilkzone">
+      <th class="stepname"><a href="#step-10"><span class="n">10</span>반출</a><small>다음 위치로 반송</small></th>
+      <td></td>
+      <td>
+        <div class="it msg"><span class="k">메시지</span><b>TransferReq</b> <span class="to">→ MCS</span></div>
+        <div class="it chk"><span class="k">인터락</span><a href="#IL-CVD-05">IL-CVD-05</a> Q-Time 시작 (4시간)</div>
+        <div class="it ng"><span class="k">걸리면</span><code>LOT.QTIME_OVER</code> N → Y, 품질 검토 요청</div>
+      </td>
+      <td></td>
+      <td>
+        <div class="it act"><span class="k">처리</span>LP1 → STK-01 반송</div>
+        <div class="it tbl"><span class="k">테이블</span><code>CARRIER.STATE</code> ON_PORT → MOVING → STORED</div>
+        <div class="it msg"><span class="k">메시지</span><b>TransferCompleted</b> <span class="to">→ MES</span></div>
+      </td>
+      <td><div class="it act"><span class="k">처리</span>포트 비움 (Unload)</div></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="s3-2">3.2 테이블 상태 변경 요약</h3>
+<table>
+  <tr><th>테이블.컬럼</th><th>변경</th><th>단계</th><th>바꾸는 곳</th></tr>
+  <tr><td class="mono">LOT.RESV_EQP</td><td>빈값 → CVD-01</td><td><a href="#step-1">1. 작업 시작</a></td><td>MES</td></tr>
+  <tr><td class="mono">LOT.STATE</td><td>WAIT → RUN</td><td><a href="#step-6">6. 공정 시작</a></td><td>MES</td></tr>
+  <tr><td class="mono">LOT.STATE</td><td>RUN → WAIT (다음 단계)</td><td><a href="#step-9">9. Track Out</a></td><td>MES</td></tr>
+  <tr><td class="mono">LOT.HOLD_FLAG</td><td>N → Y (인터락 걸렸을 때)</td><td><a href="#step-5">5</a>, <a href="#step-7">7</a></td><td>MES</td></tr>
+  <tr><td class="mono">LOT.QTIME_OVER</td><td>N → Y (4시간 초과 시)</td><td><a href="#step-10">10. 반출</a></td><td>MES</td></tr>
+  <tr><td class="mono">EQP.STATE</td><td>IDLE → RUN → IDLE, 이상 시 DOWN</td><td><a href="#step-6">6</a>, <a href="#step-7">7</a>, <a href="#step-9">9</a></td><td>MES</td></tr>
+  <tr><td class="mono">EQP.PM_CNT</td><td>처리 매수만큼 증가</td><td><a href="#step-9">9. Track Out</a></td><td>MES</td></tr>
+  <tr><td class="mono">CARRIER.STATE</td><td>STORED → MOVING → ON_PORT → MOVING → STORED</td><td><a href="#step-1">1</a>, <a href="#step-2">2</a>, <a href="#step-10">10</a></td><td>MCS</td></tr>
+  <tr><td class="mono">CARRIER.LOC</td><td>스토커 → CVD-01/LP1 → STK-01</td><td><a href="#step-2">2</a>, <a href="#step-10">10</a></td><td>MES, MCS</td></tr>
+  <tr><td class="mono">LOT_HIST</td><td>TRACK_IN, TRACK_OUT 행 추가</td><td><a href="#step-6">6</a>, <a href="#step-9">9</a></td><td>MES</td></tr>
+  <tr><td class="mono">PROC_DATA</td><td>공정 측정값 행 추가</td><td><a href="#step-7">7. 공정 데이터</a></td><td>MES</td></tr>
+  <tr><td class="mono">ILK_HIST</td><td>인터락 발생 행 추가</td><td>인터락 걸릴 때마다</td><td>MES</td></tr>
+</table>
+
+<h3 id="s3-3">3.3 단계별 상세</h3>
+
+<section class="step-detail" id="step-1">
+  <h3><span class="n">1</span>작업 시작 (반송 요청)</h3>
+  <p>작업자가 MES 작업 화면에서 로트와 장비를 골라 작업을 시작한다. MES는 로트·장비 상태를 확인하고 장비를 예약한 뒤 MCS에 반송을 요청한다.</p>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th></tr>
+    <tr><td class="mono">WorkStartReq</td><td>UI → MES</td><td class="mono">LotID, EqpID, UserID</td></tr>
+    <tr><td class="mono">TransferReq</td><td>MES → MCS</td><td class="mono">CarrierID, From, Dest(CVD-01/LP1)</td></tr>
+  </table>
+</section>
+
+<section class="step-detail" id="step-2">
+  <h3><span class="n">2</span>캐리어 도착</h3>
+  <p>캐리어가 포트에 올라오면 장비가 도착 이벤트를 보내고, EIS가 이를 사내 메시지로 바꿔 MES에 전달한다. MCS도 반송 완료를 따로 알린다.</p>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th><th>예시</th></tr>
+    <tr><td class="mono">S6F11 CEID 100</td><td>장비 → EIS</td><td class="mono">CarrierID, PortID</td><td class="mono">CR-00123, LP1</td></tr>
+    <tr><td class="mono">CarrierArrived</td><td>EIS → MES</td><td class="mono">EqpID, CarrierID, PortID</td><td class="mono">CVD-01, CR-00123, LP1</td></tr>
+    <tr><td class="mono">TransferCompleted</td><td>MCS → MES</td><td class="mono">CarrierID, Loc, ResultCode</td><td class="mono">CR-00123, CVD-01/LP1, 0</td></tr>
+  </table>
+</section>
+
+<section class="step-detail" id="step-3">
+  <h3><span class="n">3</span>Track In 검증</h3>
+  <p>MES가 로트·레시피·장비 상태를 확인한다. 하나라도 맞지 않으면 Track In 을 거부한다.</p>
+  <table>
+    <tr><th>검증 항목</th><th>기준</th><th>조회 테이블</th></tr>
+    <tr><td>로트 상태</td><td>WAIT 상태, Hold 아님</td><td class="mono">LOT</td></tr>
+    <tr><td>레시피</td><td>공정 단계 지정 레시피 = 장비 등록 레시피</td><td class="mono">RECIPE</td></tr>
+    <tr><td>장비 상태</td><td>IDLE 상태, PM 주기 이내</td><td class="mono">EQP</td></tr>
+  </table>
+  <p class="ilk-ref">관련 인터락: <a href="#IL-CVD-01">IL-CVD-01 레시피 불일치</a>, <a href="#IL-CVD-02">IL-CVD-02 PM 주기 초과</a></p>
+</section>
+
+<section class="step-detail" id="step-4">
+  <h3><span class="n">4</span>레시피 지시</h3>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th><th>예시</th></tr>
+    <tr><td class="mono">TrackInCmd</td><td>MES → EIS</td><td class="mono">LotID, PPID</td><td class="mono">LOT2611-001, CVD_OX_1000A</td></tr>
+    <tr><td class="mono">S2F41 PP-SELECT</td><td>EIS → 장비</td><td class="mono">PPID</td><td class="mono">CVD_OX_1000A</td></tr>
+  </table>
+</section>
+
+<section class="step-detail" id="step-5">
+  <h3><span class="n">5</span>지시 응답</h3>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th><th>예시</th></tr>
+    <tr><td class="mono">S2F42</td><td>장비 → EIS</td><td class="mono">HCACK (0 = 수락)</td><td class="mono">0</td></tr>
+    <tr><td class="mono">TrackInCmdReply</td><td>EIS → MES</td><td class="mono">Result, ReasonCode</td><td class="mono">OK</td></tr>
+  </table>
+  <p class="ilk-ref">관련 인터락: <a href="#IL-CVD-03">IL-CVD-03 지시 거부 응답</a></p>
+</section>
+
+<section class="step-detail" id="step-6">
+  <h3><span class="n">6</span>공정 시작</h3>
+  <p>MES가 시작을 지시하고, 장비의 시작 보고를 받으면 로트와 장비 상태를 RUN 으로 바꾼다.</p>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th></tr>
+    <tr><td class="mono">StartCmd</td><td>MES → EIS</td><td class="mono">LotID</td></tr>
+    <tr><td class="mono">S2F41 START</td><td>EIS → 장비</td><td class="mono">LotID</td></tr>
+    <tr><td class="mono">S6F11 CEID 200</td><td>장비 → EIS</td><td class="mono">LotID, StartTime</td></tr>
+    <tr><td class="mono">ProcessStarted</td><td>EIS → MES</td><td class="mono">EqpID, LotID, StartTime</td></tr>
+  </table>
+</section>
+
+<section class="step-detail" id="step-7">
+  <h3><span class="n">7</span>공정 데이터</h3>
+  <p>공정 단계마다 주요 값을 보고한다. MES는 값을 저장하고 관리 범위를 벗어나면 인터락을 건다.</p>
+  <table>
+    <tr><th>항목</th><th>설명</th><th>관리 범위</th><th>예시</th></tr>
+    <tr><td class="mono">Temp</td><td>챔버 온도 (℃)</td><td>395 ~ 405</td><td class="mono">400.2</td></tr>
+    <tr><td class="mono">Pressure</td><td>챔버 압력 (Torr)</td><td>0.8 ~ 1.2</td><td class="mono">1.01</td></tr>
+    <tr><td class="mono">GasFlow</td><td>가스 유량 (sccm)</td><td>480 ~ 520</td><td class="mono">502</td></tr>
+  </table>
+  <p class="ilk-ref">관련 인터락: <a href="#IL-CVD-04">IL-CVD-04 챔버 압력 이상</a></p>
+</section>
+
+<section class="step-detail" id="step-8">
+  <h3><span class="n">8</span>공정 완료</h3>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th><th>예시</th></tr>
+    <tr><td class="mono">S6F11 CEID 300</td><td>장비 → EIS</td><td class="mono">LotID, EndTime, Result</td><td class="mono">LOT2611-001, 10:02:41, OK</td></tr>
+    <tr><td class="mono">ProcessCompleted</td><td>EIS → MES</td><td class="mono">EqpID, LotID, Result</td><td class="mono">CVD-01, LOT2611-001, OK</td></tr>
+  </table>
+</section>
+
+<section class="step-detail" id="step-9">
+  <h3><span class="n">9</span>Track Out</h3>
+  <p>MES가 로트를 다음 공정 단계로 넘기고, 처리 매수를 장비 PM 카운트에 더한다. 변경되는 테이블은 <a href="#s3-2">3.2 테이블 상태 변경 요약</a> 참고.</p>
+</section>
+
+<section class="step-detail" id="step-10">
+  <h3><span class="n">10</span>반출</h3>
+  <table>
+    <tr><th>메시지</th><th>보내는 곳 → 받는 곳</th><th>주요 항목</th><th>예시</th></tr>
+    <tr><td class="mono">TransferReq</td><td>MES → MCS</td><td class="mono">CarrierID, Dest</td><td class="mono">CR-00123, STK-01</td></tr>
+    <tr><td class="mono">TransferCompleted</td><td>MCS → MES</td><td class="mono">CarrierID, Loc, ResultCode</td><td class="mono">CR-00123, STK-01, 0</td></tr>
+  </table>
+  <p class="ilk-ref">관련 인터락: <a href="#IL-CVD-05">IL-CVD-05 Q-Time 초과</a></p>
+</section>
+
+<!-- ===================== 4. 인터락 ===================== -->
+<h2 id="s4">4. 관련 인터락</h2>
+
+<h3>4.1 인터락 목록</h3>
+<table>
+  <tr><th>번호</th><th>이름</th><th>등급</th><th>체크하는 곳</th><th>걸리는 단계</th></tr>
+  <tr><td class="mono"><a href="#IL-CVD-01">IL-CVD-01</a></td><td>레시피 불일치</td><td><span class="lv crit">심각</span></td><td>MES</td><td><a href="#step-3">3. Track In 검증</a></td></tr>
+  <tr><td class="mono"><a href="#IL-CVD-02">IL-CVD-02</a></td><td>PM 주기 초과</td><td><span class="lv warn">경고</span></td><td>MES</td><td><a href="#step-3">3. Track In 검증</a></td></tr>
+  <tr><td class="mono"><a href="#IL-CVD-03">IL-CVD-03</a></td><td>지시 거부 응답</td><td><span class="lv warn">경고</span></td><td>EIS, MES</td><td><a href="#step-5">5. 지시 응답</a></td></tr>
+  <tr><td class="mono"><a href="#IL-CVD-04">IL-CVD-04</a></td><td>챔버 압력 이상</td><td><span class="lv crit">심각</span></td><td>MES</td><td><a href="#step-7">7. 공정 데이터</a></td></tr>
+  <tr><td class="mono"><a href="#IL-CVD-05">IL-CVD-05</a></td><td>Q-Time 초과</td><td><span class="lv info">주의</span></td><td>MES</td><td><a href="#step-10">10. 반출</a></td></tr>
+</table>
+<p style="font-size:13px;color:var(--sub)">등급: <span class="lv crit">심각</span> 즉시 진행 중지 · <span class="lv warn">경고</span> 신규 진행 차단 · <span class="lv info">주의</span> 알림 후 진행</p>
+
+<h3>4.2 인터락 상세</h3>
+
+<section class="ilk" id="IL-CVD-01">
+  <table class="kv">
+    <tr><th>번호 / 이름</th><td><b>IL-CVD-01 레시피 불일치</b> <span class="lv crit">심각</span></td></tr>
+    <tr><th>걸리는 단계</th><td><a href="#step-3">3. Track In 검증</a> (MES)</td></tr>
+    <tr><th>발생 조건</th><td>공정 단계에 지정된 레시피와 장비에 등록된 레시피가 다름</td></tr>
+    <tr><th>조치</th><td>Track In 거부, 공정 담당자에게 알림</td></tr>
+    <tr><th>해제 방법</th><td>레시피 수정 후 재검증</td></tr>
+    <tr><th>테이블 / 로그</th><td><code>ILK_HIST</code> 행 추가, Track In 화면 오류 메시지</td></tr>
+  </table>
+</section>
+
+<section class="ilk" id="IL-CVD-02">
+  <table class="kv">
+    <tr><th>번호 / 이름</th><td><b>IL-CVD-02 PM 주기 초과</b> <span class="lv warn">경고</span></td></tr>
+    <tr><th>걸리는 단계</th><td><a href="#step-3">3. Track In 검증</a> (MES)</td></tr>
+    <tr><th>발생 조건</th><td><code>EQP.PM_CNT</code> 가 기준(5,000매) 초과</td></tr>
+    <tr><th>조치</th><td>신규 Track In 차단, <code>EQP.STATE</code> → PM_WAIT</td></tr>
+    <tr><th>해제 방법</th><td>PM 완료 등록 (<code>EQP.PM_CNT</code> 0으로 초기화)</td></tr>
+    <tr><th>테이블 / 로그</th><td><code>ILK_HIST</code>, 장비 상태 이력</td></tr>
+  </table>
+</section>
+
+<section class="ilk" id="IL-CVD-03">
+  <table class="kv">
+    <tr><th>번호 / 이름</th><td><b>IL-CVD-03 지시 거부 응답</b> <span class="lv warn">경고</span></td></tr>
+    <tr><th>걸리는 단계</th><td><a href="#step-5">5. 지시 응답</a> (EIS 확인 → MES 처리)</td></tr>
+    <tr><th>발생 조건</th><td><code>S2F42</code> HCACK 가 0이 아님</td></tr>
+    <tr><th>조치</th><td><code>LOT.HOLD_FLAG</code> → Y, 장비 담당자 호출</td></tr>
+    <tr><th>해제 방법</th><td>원인 확인 후 수동 재지시</td></tr>
+    <tr><th>테이블 / 로그</th><td><code>ILK_HIST</code>, EIS 통신 로그 (HCACK 값)</td></tr>
+  </table>
+</section>
+
+<section class="ilk" id="IL-CVD-04">
+  <table class="kv">
+    <tr><th>번호 / 이름</th><td><b>IL-CVD-04 챔버 압력 이상</b> <span class="lv crit">심각</span></td></tr>
+    <tr><th>걸리는 단계</th><td><a href="#step-7">7. 공정 데이터</a> (MES)</td></tr>
+    <tr><th>발생 조건</th><td>Pressure 값이 관리 범위(0.8 ~ 1.2 Torr) 밖</td></tr>
+    <tr><th>조치</th><td><code>LOT.HOLD_FLAG</code> → Y, <code>EQP.STATE</code> → DOWN, 알람(<code>S5F1</code>) 기록</td></tr>
+    <tr><th>해제 방법</th><td>설비 엔지니어 확인 후 해제</td></tr>
+    <tr><th>테이블 / 로그</th><td><code>ILK_HIST</code>, <code>PROC_DATA</code>, 장비 알람 이력</td></tr>
+  </table>
+</section>
+
+<section class="ilk" id="IL-CVD-05">
+  <table class="kv">
+    <tr><th>번호 / 이름</th><td><b>IL-CVD-05 Q-Time 초과</b> <span class="lv info">주의</span></td></tr>
+    <tr><th>걸리는 단계</th><td><a href="#step-10">10. 반출</a> (MES)</td></tr>
+    <tr><th>발생 조건</th><td>공정 완료 후 다음 공정 Track In 까지 4시간 초과</td></tr>
+    <tr><th>조치</th><td><code>LOT.QTIME_OVER</code> → Y, 품질 검토 요청</td></tr>
+    <tr><th>해제 방법</th><td>품질 담당 판정</td></tr>
+    <tr><th>테이블 / 로그</th><td><code>ILK_HIST</code>, 로트 이력 Q-Time 항목</td></tr>
+  </table>
+</section>
+
+<!-- ===================== 5. 특이 사항 ===================== -->
+<h2 id="s5">5. 특이 사항</h2>
+<ul>
+  <li>LP2 포트는 더미 웨이퍼 전용으로 운영 (예시)</li>
+  <li>EIS와 장비 통신이 끊기면 MES는 5분 후 <code>EQP.STATE</code> 를 COMM_OFF 로 바꾸고 신규 Track In 을 막는다.</li>
+  <li>Track In · Track Out 자동/수동 설정은 장비별 설정값을 따른다.</li>
+</ul>
+
+<!-- ===================== 6. 변경 이력 ===================== -->
+<h2 id="s6">6. 변경 이력</h2>
+<table>
+  <tr><th>버전</th><th>날짜</th><th>작성자</th><th>내용</th></tr>
+  <tr><td>1.1</td><td>2026-11-26</td><td>작성자</td><td>전체 흐름을 UI·MES·EIS·MCS·장비 표로 변경, 테이블 상태 변경 요약 추가</td></tr>
+  <tr><td>1.0</td><td>2026-11-26</td><td>작성자</td><td>최초 작성</td></tr>
+</table>
+
+<p class="foot">CVD-01 장비 분석서 · MES-EQ-CVD-01 · 예시 문서</p>
+</article>
+</body>
+</html>
