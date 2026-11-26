@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>공장 물류 3D 현황</title>
+<style>
+:root{--bg:#0d1420;--panel:#121c2b;--panel2:#0f1826;--line:#24344b;--txt:#dfe8f5;--mut:#8ea3bf;--acc:#3fb6ff;--hl:#ffb020;--mv:#22d3ee}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
+header{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+h1{font-size:17px;margin:0 6px 0 0;white-space:nowrap}
+.search{position:relative;flex:0 1 330px;min-width:190px}
+.search input{width:100%;background:#0a111c;border:1.5px solid var(--acc);border-radius:8px;padding:7px 30px 7px 11px;color:var(--txt);font:inherit;font-size:14px;outline:none}
+.search .x{position:absolute;right:6px;top:5px;border:0;background:none;color:var(--mut);font-size:16px;padding:2px 6px;display:none}
+.sres{position:absolute;top:40px;left:0;right:0;background:#16233a;border:1px solid var(--line);border-radius:8px;z-index:30;max-height:60vh;overflow:auto;display:none;box-shadow:0 10px 30px #000a}
+.sres div{padding:7px 11px;cursor:pointer;border-bottom:1px solid #ffffff0d}
+.sres div:hover,.sres div.on{background:#24344b}
+.sres small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
+.live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);margin-left:auto;white-space:nowrap}
+.live i{width:9px;height:9px;border-radius:50%;background:#3ddc97;box-shadow:0 0 8px #3ddc97;animation:blink 1.2s infinite}
+button{background:#16233a;border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+.pop{position:relative}
+.menu{position:absolute;right:0;top:36px;background:#16233a;border:1px solid var(--line);border-radius:8px;padding:6px;display:none;z-index:30;min-width:220px;box-shadow:0 10px 30px #000a}
+.menu button{display:block;width:100%;text-align:left;margin:3px 0}
+.menu p{margin:4px 6px 6px;color:var(--mut);font-size:11.5px;line-height:1.5}
+#crumb{display:flex;align-items:center;gap:4px;padding:7px 14px;color:var(--mut);border-bottom:1px solid var(--line);flex-wrap:wrap;min-height:36px}
+#crumb a{color:var(--txt);cursor:pointer;padding:2px 7px;border-radius:5px}
+#crumb a:hover{background:#24344b}
+#crumb a.cur{color:var(--hl);font-weight:700}
+#crumb .up{margin-left:auto}
+main{flex:1;display:flex;min-height:0}
+#stage{flex:1;position:relative;min-width:0;background:radial-gradient(ellipse at 50% 40%,#14233c,#0b111b 72%)}
+#sv{width:100%;height:100%;display:block;cursor:grab;user-select:none;touch-action:none}
+#sv.drag{cursor:grabbing}
+#sv text{pointer-events:none}
+[data-nav]{cursor:pointer}
+.hov{filter:brightness(1.45) saturate(1.2)}
+.zoom{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:5px}
+.zoom button{width:34px;height:34px;padding:0;font-size:16px}
+#hint{position:absolute;left:12px;bottom:12px;color:var(--mut);font-size:12px;background:#0b1422cc;border:1px solid var(--line);border-radius:7px;padding:6px 9px;pointer-events:none}
+#legend{position:absolute;left:12px;top:12px;font-size:12px;background:#0b1422dd;border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.9;pointer-events:none}
+#legend b{font-weight:400;color:var(--mut)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 8px;vertical-align:-1px}
+#tip{position:fixed;pointer-events:none;background:#0b1422f2;border:1px solid var(--acc);border-radius:7px;padding:6px 9px;font-size:12px;display:none;z-index:40;max-width:320px;white-space:pre-line}
+#side{width:370px;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:14px}
+#side h3{font-size:13px;color:var(--mut);font-weight:400;margin:16px 0 8px}
+#side h3:first-child{margin-top:0}
+.title{font-size:18px;font-weight:700;margin-bottom:4px}
+.sub{color:var(--mut);margin-bottom:10px}
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sum div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.sum b{display:block;font-size:17px}
+.sum span{color:var(--mut);font-size:11.5px}
+.sum .all{grid-column:1/3}
+.li{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel2);cursor:pointer}
+.li:hover{border-color:var(--acc)}
+.li.on{border-color:var(--hl)}
+.li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .c{color:var(--mut);font-size:12px;white-space:nowrap}
+.li.gray{opacity:.55}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chip{background:#16233a;border:1px solid var(--line);border-radius:12px;padding:2px 8px;font-size:11.5px;cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+.st{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;white-space:nowrap}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;line-height:1.8}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:400}
+tr.hit td{background:#3a2c08;color:#ffe2a8}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#1a2840}
+.filter{width:100%;background:#0a111c;border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--txt);font:inherit;margin-bottom:6px}
+.more{color:var(--mut);font-size:12px;padding:6px 2px}
+.empty{color:var(--mut);padding:30px 10px;text-align:center;line-height:1.8}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#16233a;border:1px solid var(--acc);border-radius:8px;padding:9px 14px;display:none;z-index:50;max-width:80vw}
+#drop{position:fixed;inset:0;background:#0d1420dd;border:3px dashed var(--acc);display:none;align-items:center;justify-content:center;font-size:20px;z-index:60}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.blink{animation:blink 2.4s ease-in-out infinite}
+.blinkf{animation:blink .8s steps(2) infinite}
+@keyframes flow{to{stroke-dashoffset:-40}}
+.flow{animation:flow 1.4s linear infinite}
+@keyframes tw{0%,60%,100%{opacity:1}75%,90%{opacity:.1}}
+.tw{animation:tw 5s ease-in-out infinite}
+@keyframes zin{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@keyframes zout{from{opacity:0;transform:scale(1.1)}to{opacity:1;transform:scale(1)}}
+.enter{animation:zin .45s ease-out}
+.enter.back{animation-name:zout}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (max-width:900px){main{flex-direction:column}#side{width:auto;height:45%;border-left:0;border-top:1px solid var(--line)}.live{display:none}#legend{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>공장 물류 3D 현황</h1>
+  <div class="search"><input id="q" placeholder="FOUP 검색  ( / 키 )" autocomplete="off" spellcheck="false"><button class="x" id="qx" title="검색 지우기">×</button><div id="sres" class="sres"></div></div>
+  <div class="live"><i></i><span id="stamp"></span></div>
+  <button id="btnLoad">데이터 불러오기</button>
+  <input type="file" id="file" multiple accept=".csv,.json,.txt,.tsv" hidden>
+  <div class="pop"><button id="btnTpl">양식 · 샘플 ▾</button>
+    <div class="menu" id="menu">
+      <p>현재 데이터를 엑셀에서 열 수 있는 표 파일로 받습니다. 같은 모양으로 채워서 다시 불러오면 됩니다.</p>
+      <button data-tpl="foups">FOUP 표 (필수)</button>
+      <button data-tpl="machines">Machine 표 (선택)</button>
+      <button data-tpl="ports">Port 표 (선택)</button>
+      <button id="btnSample">샘플 데이터로 되돌리기</button>
+    </div>
+  </div>
+</header>
+<nav id="crumb"></nav>
+<main>
+  <section id="stage">
+    <svg id="sv" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="legend"></div>
+    <div id="hint"></div>
+    <div class="zoom"><button data-z="1" title="확대">＋</button><button data-z="-1" title="축소">－</button><button data-z="0" title="처음 크기">⟲</button></div>
+  </section>
+  <aside id="side"></aside>
+</main>
+<div id="tip"></div><div id="toast"></div><div id="drop">파일을 여기에 놓으세요 (CSV · JSON)</div>
+<script>
+'use strict';
+/* =========================================================
+   공장 물류 3D 현황 — 파일 하나로 동작 (외부 라이브러리 없음)
+   데이터: FOUP 표(필수) + Machine 표(선택) + Port 표(선택)
+   ========================================================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n||0).toLocaleString('ko-KR');
+const nat=(a,b)=>String(a).localeCompare(String(b),'ko',{numeric:true});
+function floorKey(n){n=String(n);const m=/^B(\d+)/i.exec(n);if(m)return -(+m[1]);const d=parseFloat(n);return isNaN(d)?999:d}
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+const HL='#ffb020',MV='#22d3ee',FO='#ff9f43',STBC='#9b7bff',STKC='#c08a3a',RAIL='#3fb6ff',GRAYM='#5b6270';
+const ST={run:['#52c41a','가동'],idle:['#ffc53d','대기'],down:['#ff4d4f','고장'],pm:['#3fb6ff','정비']};
+const PTC={In:['#3ddc97','InPort'],Out:['#ff6b81','OutPort'],InOut:['#3fb6ff','InOut']};
+const ACOL=['#a29bfe','#55efc4','#fdcb6e','#fab1a0','#74b9ff','#81ecec','#ffeaa7','#fd79a8'];
+const TYPE_NM={proc:'공정 Machine',stk:'Stoker',stb:'천장 STB'};
+const NOAREA='(Area 없음)',NOBAY='(Bay 없음)',NONE='(미지정)';
+
+/* ---------------- 데이터 ---------------- */
+let DB={foups:[],machines:[],ports:[],src:'샘플 데이터',time:new Date()};
+let T=new Map(),MI=new Map(),FI=new Map(),WARN=[];
+
+function normType(t,name){t=String(t||'').toLowerCase();if(/stk|stocker|stoker|스토커/.test(t))return'stk';if(/stb/.test(t))return'stb';if(/proc|machine|eqp|공정|장비|설비/.test(t))return'proc';const n=String(name||'').toUpperCase();if(/^STK/.test(n))return'stk';if(/^STB/.test(n))return'stb';return'proc'}
+function normState(s){s=String(s||'').toLowerCase();if(/down|고장|err|alarm|fault|trouble/.test(s))return'down';if(/pm|정비|maint/.test(s))return'pm';if(/idle|대기|wait|stand/.test(s))return'idle';return'run'}
+function normLog(v){if(v==null||String(v).trim()==='')return true;return!/^(n|no|false|0|x|불가|불가능|아니오|미사용)$/i.test(String(v).trim())}
+function normPT(v){v=String(v||'').toLowerCase().replace(/\s/g,'');if(/inout|both|둘|양방|in\/out|io/.test(v))return'InOut';if(/^in|입/.test(v))return'In';if(/^out|출/.test(v))return'Out';return'InOut'}
+const isEmptyFoup=f=>/빈|empty/i.test(f.status||'');
+
+function newNode(name){return{name,kids:new Map(),moving:[]}}
+function newBay(name,area){return{name,area,machines:[],moving:[],isBay:true}}
+function child(map,name){name=name||NONE;if(!map.has(name))map.set(name,newNode(name));return map.get(name)}
+function bayOf(r){const s=child(T,r.site),b=child(s.kids,r.bld),f=child(b.kids,r.floor),a=child(f.kids,r.area||NOAREA);const bn=r.bay||NOBAY;if(!a.kids.has(bn))a.kids.set(bn,newBay(bn,a.name));return a.kids.get(bn)}
+
+function build(){
+  T=new Map();MI=new Map();FI=new Map();WARN=[];
+  const addM=r=>{
+    const key=String(r.machine).trim();let m=MI.get(key);if(m)return m;
+    m={name:key,site:r.site||NONE,bld:r.bld||NONE,floor:r.floor||NONE,area:r.area||NOAREA,bay:r.bay||NOBAY,type:normType(r.type,key),state:normState(r.state||r.status),log:normLog(r.log),ports:[],foups:[]};
+    if(m.type!=='proc')m.log=true;
+    MI.set(key,m);bayOf(m).machines.push(m);return m};
+  DB.machines.forEach(r=>{if(r.machine&&String(r.machine).trim())addM(r)});
+  let pmiss=0;
+  DB.ports.forEach(r=>{const m=MI.get(String(r.machine||'').trim());if(!m){pmiss++;return}const pn=String(r.port||'').trim();if(pn&&!m.ports.find(p=>p.name===pn))m.ports.push({name:pn,type:normPT(r.ptype),state:r.state||r.status||''})});
+  let dup=0;
+  DB.foups.forEach(r=>{
+    const id=String(r.foup||'').trim();if(!id)return;
+    if(FI.has(id.toUpperCase())){dup++;return}
+    const f={id,lot:r.lot||'',status:r.status||'',time:r.time||'',port:String(r.port||'').trim(),from:r.from||'',to:r.to||''};
+    const mname=String(r.machine||'').trim();
+    if(mname&&!/^moving$/i.test(mname)){const m=addM(r);f.m=m;m.foups.push(f)}
+    else{
+      f.moving=true;f.site=r.site||NONE;f.bld=r.bld||'';f.floor=r.floor||'';f.area=r.area||'';f.bay=r.bay||'';
+      let n=child(T,f.site);
+      if(f.bld){n=child(n.kids,f.bld);if(f.floor){n=child(n.kids,f.floor);if(f.area){n=child(n.kids,f.area);if(f.bay){if(!n.kids.has(f.bay))n.kids.set(f.bay,newBay(f.bay,n.name));n=n.kids.get(f.bay)}}}}
+      n.moving.push(f)}
+    FI.set(id.toUpperCase(),f)});
+  MI.forEach(m=>{m.ports.sort((a,b)=>nat(a.name,b.name));m.foups.sort((a,b)=>nat(a.port||'~',b.port||'~')||nat(a.id,b.id))});
+  T.forEach(agg);
+  if(dup)WARN.push(`같은 FOUP 번호 ${dup}개는 처음 한 줄만 사용했습니다.`);
+  if(pmiss)WARN.push(`Machine 표에 없는 Port ${pmiss}줄은 무시했습니다.`);
+}
+function agg(n){
+  const c={all:0,proc:0,stk:0,stb:0,mov:n.moving.length,mach:0,down:0};
+  if(n.isBay)n.machines.forEach(m=>{c[m.type]+=m.foups.length;c.mach++;if(m.state==='down'&&m.log)c.down++});
+  else n.kids.forEach(k=>{const kc=agg(k);for(const key in c)c[key]+=kc[key]});
+  c.all=c.proc+c.stk+c.stb+c.mov;n.c=c;return c}
+function allMoving(n){let r=n.moving.slice();if(!n.isBay)n.kids.forEach(k=>r=r.concat(allMoving(k)));return r}
+function allMachines(n){if(n.isBay)return n.machines;let r=[];n.kids.forEach(k=>r=r.concat(allMachines(k)));return r}
+function pathOf(f){
+  if(!f)return null;
+  if(f.m){const m=f.m;return{site:m.site,bld:m.bld,floor:m.floor,area:m.area,bay:m.bay,mach:m.name}}
+  return{site:f.site,bld:f.bld,floor:f.floor,area:f.area,bay:f.bay}}
+function pathText(f){
+  if(f.m){const m=f.m;return[m.site,m.bld,m.floor,m.area,m.bay,m.name].filter(v=>v&&v!==NOBAY&&v!==NOAREA&&v!==NONE).join(' › ')+(f.port?' › '+f.port:(m.type!=='proc'?' (안에 보관)':''))}
+  return[f.site,f.bld,f.floor,f.area,f.bay].filter(v=>v&&v!==NONE).concat('Moving').join(' › ')}
+const portOf=f=>f&&f.m&&f.port?f.m.ports.find(p=>p.name===f.port):null;
+
+/* ---------------- 표 파일 읽기 ---------------- */
+const ALIAS={site:['site','사이트'],bld:['building','bld','bldg','건물','동'],floor:['floor','층','fl'],area:['area','에어리어','구역'],bay:['bay','베이'],
+  machine:['machine','machinename','machineid','eqp','eqpid','equipment','장비','설비','장비명'],foup:['foup','foupid','carrier','carrierid','캐리어'],
+  port:['port','portid','machineport','포트'],lot:['lot','lotid','로트'],status:['status','foupstatus','상태'],time:['time','시간','시각','updatetime','eventtime'],
+  from:['from','출발','출발지','source'],to:['to','도착','도착지','목적지','dest','destination'],type:['type','machinetype','종류','타입','유형'],
+  state:['state','machinestate','eqpstate','장비상태','machine상태'],log:['logistics','물류','물류가능','물류여부'],ptype:['porttype','구분','portkind','방향','inout']};
+const hn=h=>String(h).replace(/^﻿/,'').toLowerCase().replace(/[\s_\-().·]/g,'');
+function parseCSV(text){
+  text=text.replace(/^﻿/,'');const first=text.split(/\r?\n/,1)[0]||'';
+  const dl=[',','\t',';'].map(d=>[d,first.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"'&&cur==='')q=true;else if(c===dl){row.push(cur);cur=''}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur=''}else if(c!=='\r')cur+=c}
+  if(cur!==''||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.some(v=>String(v).trim()!==''))}
+function mapRows(rows){
+  const H=rows[0].map(hn),idx={};
+  for(const k in ALIAS){const i=H.findIndex(h=>ALIAS[k].includes(h));if(i>=0)idx[k]=i}
+  return{keys:Object.keys(idx),rows:rows.slice(1).map(r=>{const o={};for(const k in idx)o[k]=String(r[idx[k]]==null?'':r[idx[k]]).trim();return o})}}
+function classify(keys){if(keys.includes('foup'))return'foups';if(keys.includes('ptype')||(keys.includes('port')&&keys.includes('machine')&&!keys.includes('site')))return'ports';if(keys.includes('machine'))return'machines';return null}
+async function readText(file){const buf=await file.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('euc-kr').decode(buf)}}
+function objsToRows(arr){const keys=[...new Set(arr.flatMap(o=>o&&typeof o==='object'?Object.keys(o):[]))];return[keys,...arr.map(o=>keys.map(k=>o&&o[k]!=null?o[k]:''))]}
+async function loadFiles(files){
+  const got={foups:null,machines:null,ports:null},names=[],bad=[];let latest=0;
+  for(const file of files){
+    try{
+      const txt=await readText(file);const sets=[];
+      if(/\.json$/i.test(file.name)||/^\s*[\[{]/.test(txt)){const j=JSON.parse(txt);
+        if(Array.isArray(j))sets.push(objsToRows(j));else for(const k in j)if(Array.isArray(j[k])&&j[k].length)sets.push(objsToRows(j[k]))}
+      else sets.push(parseCSV(txt));
+      let used=false;
+      sets.forEach(rows=>{if(!rows||rows.length<2)return;const m=mapRows(rows),kind=classify(m.keys);if(!kind)return;
+        if(kind==='machines')m.rows.forEach(r=>{if(!r.state&&r.status)r.state=r.status});
+        got[kind]=(got[kind]||[]).concat(m.rows);used=true});
+      if(used){names.push(file.name);latest=Math.max(latest,file.lastModified||0)}else bad.push(file.name)
+    }catch(e){bad.push(file.name)}
+  }
+  if(!names.length){toast('읽을 수 있는 표가 없습니다. 첫 줄에 FOUP · Machine 같은 제목 칸이 있어야 합니다.'+(bad.length?' ('+bad.join(', ')+')':''));return}
+  if(got.foups)DB={foups:got.foups,machines:got.machines||[],ports:got.ports||[]};
+  else{if(got.machines)DB.machines=got.machines;if(got.ports)DB.ports=got.ports}
+  DB.src=names.join(', ');DB.time=latest?new Date(latest):new Date();
+  HLF=null;$('#q').value='';build();cur={lvl:'site',site:firstSite()};resetCam();render();
+  toast(`불러옴: ${names.join(', ')} · FOUP ${fmt(FI.size)} · Machine ${fmt(MI.size)}`+(bad.length?` · 못 읽음: ${bad.join(', ')}`:'')+(WARN.length?' · '+WARN.join(' '):''))
+}
+const TPL={foups:[['Site','site'],['Building','bld'],['Floor','floor'],['Area','area'],['Bay','bay'],['Machine','machine'],['FOUP','foup'],['Port','port'],['Lot','lot'],['Status','status'],['Time','time'],['From','from'],['To','to']],
+  machines:[['Site','site'],['Building','bld'],['Floor','floor'],['Area','area'],['Bay','bay'],['Machine','machine'],['Type','type'],['State','state'],['Logistics','log']],
+  ports:[['Machine','machine'],['Port','port'],['PortType','ptype'],['State','state']]};
+function download(kind){
+  const cols=TPL[kind],q=v=>{v=String(v==null?'':v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const lines=[cols.map(c=>c[0]).join(',')].concat(DB[kind].map(r=>cols.map(c=>q(r[c[1]])).join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv'}));
+  a.download={foups:'FOUP',machines:'Machine',ports:'Port'}[kind]+'_양식.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+
+/* ---------------- 샘플 데이터 ---------------- */
+function genSample(){
+  const R=rng(20261127),ri=(a,b)=>a+Math.floor(R()*(b-a+1)),pick=a=>a[Math.floor(R()*a.length)];
+  const M=[],F=[],P=[];let fid=1000;const nf=()=>'FP-'+String(fid++).padStart(5,'0');
+  const tm=()=>`${ri(10,12)}:${String(ri(0,59)).padStart(2,'0')}`,lot=()=>'L'+ri(1000,9999)+'.0'+ri(1,9);
+  const AR=[['PH','포토'],['ET','식각'],['CVD','증착'],['DF','확산'],['MT','계측'],['CMP','연마']];
+  const SITES=[['SITE A',[['FAB1',1,3],['FAB2',2,2],['물류동',9,1]]],['SITE B',[['FAB3',3,2]]]];
+  SITES.forEach(([site,blds])=>blds.forEach(([bld,bt,nfl])=>{for(let fl=1;fl<=nfl;fl++){
+    const floor=fl+'F',onFloor=[];
+    if(bld==='물류동'){['WH-A','WH-B'].forEach((bay,bi)=>{for(let k=1;k<=4;k++){const name=`STK-9${fl}${bi}${k}`;
+      M.push({site,bld,floor,area:'자동창고',bay,machine:name,type:'Stoker',state:pick(['run','run','run','idle']),log:'Y'});
+      P.push({machine:name,port:'IN',ptype:'In',state:'정상'},{machine:name,port:'OUT',ptype:'Out',state:'정상'});
+      for(let j=ri(40,90);j>0;j--)F.push({site,bld,floor,area:'자동창고',bay,machine:name,foup:nf(),lot:lot(),status:'보관',time:tm()});onFloor.push(name)}})}
+    else{const na=ri(3,4),start=ri(0,5);
+      for(let ai=0;ai<na;ai++){const[code,anm]=AR[(start+ai)%AR.length],area=`${anm}(${code})`;
+        for(let bi=1,nb=ri(2,3);bi<=nb;bi++){const bay=`${code}-B${bt}${fl}${bi}`;
+          for(let k=1,np=ri(4,6);k<=np;k++){const name=`${code}-${bt}${fl}${bi}${k}`,log=R()>0.13;
+            M.push({site,bld,floor,area,bay,machine:name,type:'Machine',state:pick(['run','run','run','run','idle','idle','down','pm']),log:log?'Y':'N'});onFloor.push(name);
+            if(!log)continue;const npt=ri(2,4);
+            const types=npt===2?pick([['In','Out'],['InOut','InOut'],['In','InOut']]):Array.from({length:npt},(_,j)=>j===0?'In':j===npt-1?'Out':'InOut');
+            for(let j=0;j<npt;j++){const port='LP'+(j+1),has=R()<0.55;P.push({machine:name,port,ptype:types[j],state:has?'사용 중':'비어 있음'});
+              if(has){const s=pick(['대기','공정 중','공정 중','반출 대기','빈 FOUP']);F.push({site,bld,floor,area,bay,machine:name,foup:nf(),port,lot:s==='빈 FOUP'?'':lot(),status:s,time:tm()})}}}
+          if(R()<0.6){const name=`STK-${bt}${fl}${ai}${bi}`;M.push({site,bld,floor,area,bay,machine:name,type:'Stoker',state:pick(['run','run','idle']),log:'Y'});
+            P.push({machine:name,port:'IN',ptype:'In',state:'정상'},{machine:name,port:'OUT',ptype:'Out',state:'대기'});
+            for(let j=ri(10,40);j>0;j--)F.push({site,bld,floor,area,bay,machine:name,foup:nf(),lot:lot(),status:'보관',time:tm()});onFloor.push(name)}
+          for(let k=1,ns=ri(2,3);k<=ns;k++){const name=`STB-${bt}${fl}${ai}${bi}${k}`;M.push({site,bld,floor,area,bay,machine:name,type:'STB',state:'run',log:'Y'});
+            for(let j=ri(0,2);j>0;j--)F.push({site,bld,floor,area,bay,machine:name,foup:nf(),lot:lot(),status:'보관',time:tm()});onFloor.push(name)}}}}
+    for(let j=ri(3,7);j>0;j--)F.push({site,bld,floor,area:'',bay:'',machine:'',foup:nf(),lot:lot(),status:'Moving',time:tm(),from:pick(onFloor),to:pick(onFloor)});
+  }}));
+  return{foups:F,machines:M,ports:P}}
+
+/* ---------------- 입체 그리기 도구 ---------------- */
+const C30=Math.cos(Math.PI/6);
+function mkO(s,ox,oy,fit){return{s,ox,oy,bb:fit?[1e9,1e9,-1e9,-1e9]:null,items:[],top:[],post:[],cur:null,navs:[]}}
+function P(o,x,y,z){const X=o.ox+(x-y)*C30*o.s,Y=o.oy+(x+y)*0.5*o.s-z*o.s,b=o.bb;if(b){if(X<b[0])b[0]=X;if(X>b[2])b[2]=X;if(Y<b[1])b[1]=Y;if(Y>b[3])b[3]=Y}return[Math.round(X*10)/10,Math.round(Y*10)/10]}
+function nav(o,to,tip){o.navs.push({to,tip});return o.navs.length-1}
+const wrap=(o,s)=>o.cur!=null?`<g data-nav="${o.cur}">${s}</g>`:s;
+function push(o,k,s,top){(top?o.top:o.items).push({k,s:wrap(o,s)})}
+function poly(p,f,st,sw){return`<polygon points="${p.map(a=>a.join(',')).join(' ')}" fill="${f}" stroke="${st||'#00000055'}" stroke-width="${sw==null?0.8:sw}" stroke-linejoin="round"/>`}
+function shade(h,f){const n=parseInt(h.slice(1,7),16);return`rgb(${[n>>16,n>>8&255,n&255].map(v=>Math.min(255,Math.round(v*f)))})`}
+function box(o,x,y,z,w,d,h,col,e={}){
+  const p=(a,b,c)=>P(o,a,b,c);
+  const Tp=[p(x,y,z+h),p(x+w,y,z+h),p(x+w,y+d,z+h),p(x,y+d,z+h)],L=[p(x,y+d,z),p(x+w,y+d,z),p(x+w,y+d,z+h),p(x,y+d,z+h)],R=[p(x+w,y,z),p(x+w,y+d,z),p(x+w,y+d,z+h),p(x+w,y,z+h)];
+  let s=poly(L,shade(col,.74),e.st,e.sw)+poly(R,shade(col,.56),e.st,e.sw)+poly(Tp,shade(col,1.08),e.st,e.sw);
+  if(e.cls)s=`<g class="${e.cls}" style="animation-delay:-${(Math.random()*3).toFixed(2)}s">${s}</g>`;
+  push(o,e.k!=null?e.k:(x+w/2+y+d/2+z*0.01),s,e.top)}
+function cyl(o,cx,cy,z,r,h,col,e={}){
+  const N=18,pt=(t,zz)=>P(o,cx+r*Math.cos(t),cy+r*Math.sin(t),zz),A=[];for(let i=0;i<N;i++)A.push(i*2*Math.PI/N);
+  const fr=[];for(let i=0;i<=12;i++){const t=-Math.PI/4+i*Math.PI/12;fr.push(t)}
+  const side=fr.map(t=>pt(t,z)).concat(fr.slice().reverse().map(t=>pt(t,z+h)));
+  let s=poly(side,shade(col,.68),e.st,e.sw)+poly(A.map(t=>pt(t,z+h)),shade(col,1.05),e.st,e.sw);
+  if(e.ring)s+=poly(A.map(t=>P(o,cx+r*0.7*Math.cos(t),cy+r*0.7*Math.sin(t),z+h)),'#1f2a3a','none',0);
+  push(o,e.k!=null?e.k:cx+cy+z*0.01,s,e.top)}
+function faceL(o,x,y,z,w,d,a0,a1,b0,b1,f,k,st){push(o,k,poly([P(o,x+a0,y+d,z+b0),P(o,x+a1,y+d,z+b0),P(o,x+a1,y+d,z+b1),P(o,x+a0,y+d,z+b1)],f,st||'none',st?0.8:0))}
+function faceR(o,x,y,z,w,d,a0,a1,b0,b1,f,k,st){push(o,k,poly([P(o,x+w,y+a0,z+b0),P(o,x+w,y+a1,z+b0),P(o,x+w,y+a1,z+b1),P(o,x+w,y+a0,z+b1)],f,st||'none',st?0.8:0))}
+function seg(o,p,q,st,sw,k,top,dash){const a=P(o,...p),b=P(o,...q);push(o,k,`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${st}" stroke-width="${sw}"${dash?` stroke-dasharray="${dash}"`:''}/>`,top)}
+function flat(o,x,y,z,w,d,f,st,sw,k,dash){let s=poly([P(o,x,y,z),P(o,x+w,y,z),P(o,x+w,y+d,z),P(o,x,y+d,z)],f,st,sw);if(dash)s=s.replace('/>',` stroke-dasharray="${dash}"/>`);push(o,k==null?-50:k,s)}
+function line(o,pts,st,sw){push(o,0,`<polyline points="${pts.map(p=>P(o,...p)).join(' ')}" fill="none" stroke="${st}" stroke-width="${sw}" stroke-linecap="round"/>`,true)}
+function flow(o,pts,c){push(o,1,`<polyline class="flow" points="${pts.map(p=>P(o,...p)).join(' ')}" fill="none" stroke="${c||'#ffffff70'}" stroke-width="1.5" stroke-dasharray="3 17" stroke-linecap="round"/>`,true)}
+function tag(o,x,y,z,t,e={}){
+  const[px,py]=P(o,x,y,z),fs=e.fs||12,dy=e.dy==null?-26:e.dy;let w=14;for(const ch of String(t))w+=ch.charCodeAt(0)>255?fs:fs*0.62;
+  const bd=e.b||'#3a5577',bg=e.bg||'#0b1422ee',tc=e.tc||'#dfe8f5';
+  o.post.push(wrap(o,(dy?`<line x1="${px}" y1="${py}" x2="${px}" y2="${py+dy}" stroke="${bd}"/><circle cx="${px}" cy="${py}" r="2.5" fill="${bd}"/>`:'')+
+  `<rect x="${(px-w/2).toFixed(1)}" y="${py+dy-fs/2-5}" width="${w.toFixed(1)}" height="${fs+10}" rx="5" fill="${bg}" stroke="${bd}"/><text x="${px}" y="${py+dy+fs*0.36}" font-size="${fs}" fill="${tc}" text-anchor="middle" font-weight="${e.bold?700:400}">${esc(t)}</text>`))}
+function txt(o,x,y,z,t,fs,c,bold){const[px,py]=P(o,x,y,z);o.post.push(wrap(o,`<text x="${px}" y="${py}" font-size="${fs}" fill="${c}" text-anchor="middle" font-weight="${bold?700:400}" paint-order="stroke" stroke="#0b1422" stroke-width="3" stroke-linejoin="round">${esc(t)}</text>`))}
+function ring(o,x,y,z,r){const[cx,cy]=P(o,x,y,z);o.post.push(`<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r/2}" fill="none" stroke="${HL}" stroke-width="2.5"><animate attributeName="rx" values="${r};${r*2.6}" dur="1.8s" repeatCount="indefinite"/><animate attributeName="ry" values="${r/2};${r*1.3}" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="1.8s" repeatCount="indefinite"/></ellipse><ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r/2}" fill="none" stroke="${HL}" stroke-width="2"/>`)}
+function sub(o){return mkO(o.s,0,0)}
+const flush=t=>t.items.map(i=>i.s).join('');
+function mover(o,pts,html,dur,delay,bf){const path='M'+pts.map(q=>P(o,...q).join(',')).join(' L');
+  o.top.push({k:999,s:`<g>${html}<animateMotion dur="${dur}s" begin="-${delay}s" repeatCount="indefinite" path="${path}"${bf?' keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear"':''}/></g>`})}
+
+/* OHT 차량: 구동부·바퀴 / 몸체·경고띠 / 양옆 덮개 / 잡는 장치 / 상태등 */
+function veh(o,m,foup){const t=sub(o),B=(a,b,c,w,d,h,col,e)=>box(t,a*m,b*m,c*m,w*m,d*m,h*m,col,e||{sw:0.5});
+  B(-0.3,-0.2,-0.2,0.07,0.4,0.4,'#d5dce6');
+  if(foup){B(-0.19,-0.16,-0.17,0.38,0.32,0.3,foup===true?FO:foup,{st:'#a5f3fc',sw:1});B(-0.08,-0.06,0.13,0.16,0.12,0.03,'#8a5a2b')}
+  else B(-0.03,-0.03,-0.02,0.06,0.06,0.04,'#2d3748');
+  B(-0.12,-0.02,0.13,0.01,0.01,0.06,'#1a202c');B(0.11,-0.02,0.13,0.01,0.01,0.06,'#1a202c');
+  B(0.23,-0.2,-0.2,0.07,0.4,0.4,'#d5dce6');
+  B(-0.3,-0.2,0.18,0.6,0.4,0.22,'#f2f5f9');B(-0.305,-0.205,0.27,0.61,0.41,0.04,'#f5c518');
+  B(-0.22,-0.08,0.4,0.44,0.16,0.1,'#4a5568');B(-0.2,-0.12,0.42,0.08,0.24,0.08,'#1a202c');B(0.12,-0.12,0.42,0.08,0.24,0.08,'#1a202c');
+  B(0.2,0.12,0.4,0.05,0.05,0.05,'#3fb6ff',{sw:0.3,cls:'blinkf'});return flush(t)}
+function mast(o,h){const t=sub(o);box(t,-0.06,-0.06,0,0.12,0.12,h,'#e8edf5');box(t,-0.25,-0.2,h*0.45,0.5,0.4,0.12,'#3fb6ff');return flush(t)}
+
+/* 건물: 층 띠·창문·출입구·옥상 설비 */
+function bldg(o,x,y,w,d,h,fl,col,e={}){
+  const k=x+w/2+y+d/2;
+  box(o,x-0.12,y-0.12,0,w+0.24,d+0.24,0.22,'#33445c',{k:k-0.02});
+  box(o,x,y,0,w,d,h,col,{k});
+  const fh=h/fl;
+  for(let f=0;f<fl;f++){const b0=f*fh+fh*0.28,b1=f*fh+fh*0.7;
+    if(f>0){seg(o,[x,y+d,f*fh],[x+w,y+d,f*fh],'#ffffff35',1,k+0.001);seg(o,[x+w,y+d,f*fh],[x+w,y,f*fh],'#ffffff35',1,k+0.001)}
+    for(let a=0.25;a<w-0.4;a+=0.6)faceL(o,x,y,0,w,d,a,a+0.38,b0,b1,'#bfe3ff4d',k+0.001);
+    for(let a=0.25;a<d-0.4;a+=0.6)faceR(o,x,y,0,w,d,a,a+0.38,b0,b1,'#9fd0ff38',k+0.001)}
+  if(e.band){const[z0,z1]=e.band;faceL(o,x,y,0,w,d,0,w,z0,z1,HL+'77',k+0.002,HL);faceR(o,x,y,0,w,d,0,d,z0,z1,HL+'55',k+0.002,HL)}
+  const eh=Math.min(fh*0.6,1.1);faceL(o,x,y,0,w,d,w*0.42,w*0.58,0,eh,'#0b1422',k+0.003,'#3fb6ff88');faceL(o,x,y,0,w,d,w*0.38,w*0.62,eh,eh+0.12,'#dfe8f5',k+0.003);
+  box(o,x,y,h,w,0.12,0.25,col,{k:k+0.004});box(o,x,y,h,0.12,d,0.25,col,{k:k+0.004});
+  faceL(o,x,y,0,w,d,w*0.08,w*0.46,h-Math.min(0.5,fh*0.25)-0.12,h-0.12,'#0b1422',k+0.003,'#3fb6ff');
+  faceL(o,x,y,0,w,d,w*0.11,w*0.43,h-Math.min(0.5,fh*0.25)-0.05,h-0.19,'#3fb6ff55',k+0.003);
+  if(w>=5&&d>=3.5){cyl(o,x+w-0.9,y+0.9,h,0.5,0.75,'#aab4c3',{k:k+0.02,ring:1});cyl(o,x+w-0.9,y+2.2,h,0.5,0.75,'#aab4c3',{k:k+0.021,ring:1})}
+  if(e.dock)for(let a=0.6;a<d-0.8;a+=1.1)faceR(o,x,y,0,w,d,a,a+0.75,0,0.9,'#2b3646',k+0.003,'#ffd66b88');
+  [[0.5,0.6,1.3,1,0.45],[2.2,0.6,1.3,1,0.45],[0.7,2.5,0.35,0.35,1.4,'#aab4c3'],[1.4,2.5,0.35,0.35,1.4,'#aab4c3'],[3.2,2.4,2.2,1.1,0.3,'#5c6f88']]
+    .forEach(([rx,ry,rw,rd,rh,c],i)=>{if(rx+rw<w&&ry+rd<d)box(o,x+rx,y+ry,h,rw,rd,rh,c||'#7b8ea8',{k:k+0.01+i*0.001})})}
+
+/* 공정 Machine: 패널선·화면·통풍구·배기덕트·상태등 */
+function mach(o,x,y,z,w,d,h,e={}){
+  const nl=!e.log,col=nl?GRAYM:'#8aa1bf';
+  box(o,x,y,z,w,d,h,col,{st:e.st,sw:e.sw});
+  const k=x+w/2+y+d/2+z*0.01+0.001;
+  for(let i=1;i<3;i++)seg(o,[x+w*i/3,y+d,z+h*0.05],[x+w*i/3,y+d,z+h*0.86],'#00000040',0.8,k);
+  faceL(o,x,y,z,w,d,0,w,h*0.88,h*0.94,'#ffffff30',k);faceR(o,x,y,z,w,d,0,d,h*0.88,h*0.94,'#ffffff20',k);
+  faceL(o,x,y,z,w,d,w*0.06,w*0.3,h*0.5,h*0.76,nl?'#3a3f48':'#0b2a4a',k,nl?'#6b717c':'#3fb6ff');
+  faceL(o,x,y,z,w,d,w*0.09,w*0.27,h*0.56,h*0.72,nl?'#4a505a':'#1d6fb8aa',k);
+  for(let i=0;i<4;i++){const a=d*0.25+i*d*0.13;seg(o,[x+w,y+a,z+h*0.3],[x+w,y+a,z+h*0.72],'#00000055',1,k)}
+  box(o,x+w*0.5,y+d*0.18,z+h,w*0.34,d*0.36,h*0.1,nl?'#4f5560':'#6d7f99',{k:k+0.002});
+  if(e.detail){const r=Math.min(w,d)*0.17;cyl(o,x+w*0.32,y+d*0.68,z+h,r,h*0.2,nl?'#6b717c':'#b8c4d4',{k:k+0.0025,ring:1});cyl(o,x+w*0.72,y+d*0.7,z+h,r,h*0.2,nl?'#6b717c':'#b8c4d4',{k:k+0.0026,ring:1})}
+  const st=e.state||'run',t=Math.min(0.32,Math.max(w*0.13,0.13)),tx=x+w*0.1,ty=y+d*0.15,tz=z+h,pole=h*0.16,lh=Math.min(0.4,Math.max(h*0.16,0.16)),lc=nl?'#7a808a':ST[st][0];
+  box(o,tx+t*0.35,ty+t*0.35,tz,t*0.3,t*0.3,pole,'#9aa4b2',{k:k+0.003,sw:0.3});
+  box(o,tx,ty,tz+pole,t,t,lh,lc,{k:k+0.004,sw:0.4,st:nl?'#00000055':'#ffffffaa',cls:nl?'':(st==='down'?'blinkf':'blink')});
+  if(!nl&&e.glow!==false){const[gx,gy]=P(o,tx+t/2,ty+t/2,tz+pole+lh*0.6),r=Math.min(12,Math.max(4,o.s*t*1.3));
+    o.top.push({k:-5,s:`<circle class="${st==='down'?'blinkf':'blink'}" cx="${gx}" cy="${gy}" r="${r.toFixed(1)}" fill="${lc}" opacity=".35" style="filter:blur(${Math.max(1.5,r/4).toFixed(1)}px)"/>`})}}
+
+/* Stoker: 투명 유리 + 안쪽 선반 + 보관 FOUP */
+function stk(o,x,y,z,w,d,h,lv,e={}){
+  const K=x+w/2+y+d/2+z*0.01,sc=h/4.4,pz=0.2*sc,p=(a,b,c)=>P(o,a,b,c);
+  box(o,x,y,z,w,d,pz,'#5a4630',{k:K-0.5});
+  push(o,K-0.45,poly([p(x,y,z),p(x+w,y,z),p(x+w,y,z+h),p(x,y,z+h)],'#16233a','#c08a3a88',1)+poly([p(x,y,z),p(x,y+d,z),p(x,y+d,z+h),p(x,y,z+h)],'#111c2d','#c08a3a88',1));
+  const lh=(h-pz-0.15*sc)/lv,cols=Math.max(1,Math.round(w/0.75)),rows=Math.max(1,Math.round(d/0.8)),cells=lv*cols*rows;
+  const fill=e.count==null?0.7:Math.min(1,e.count/cells);
+  for(let r=0;r<lv;r++){const zz=z+pz+r*lh;
+    push(o,K-0.4+r*0.0001,poly([p(x+0.06,y+0.06,zz),p(x+w-0.06,y+0.06,zz),p(x+w-0.06,y+d-0.06,zz),p(x+0.06,y+d-0.06,zz)],'#c9d6e626','#e0c9a080',0.8));
+    for(let c=0;c<cols;c++)for(let q=0;q<rows;q++){const hv=(((r*73+c*37+q*19+7)*2654435761)>>>0)%1000/1000;if(hv>=fill)continue;
+      const fw=w/cols*0.62,fd=d/rows*0.6,fh=lh*0.55,fx=x+(c+0.5)*w/cols-fw/2,fy=y+(q+0.5)*d/rows-fd/2;
+      box(o,fx,fy,zz+0.02,fw,fd,fh,FO,{k:K-0.3+(c+q)*0.01+r*0.0001,sw:0.4,cls:e.tw&&hv<fill*0.12?'tw':''})}}
+  for(const[px,py]of[[x,y],[x+w-0.08,y],[x,y+d-0.08],[x+w-0.08,y+d-0.08]])box(o,px,py,z,0.08,0.08,h,STKC,{k:(px===x&&py===y)?K-0.44:K+0.4,sw:0.4});
+  box(o,x,y,z+h,w,d,0.15*sc,STKC,{k:K+0.5,st:e.st,sw:e.sw});
+  push(o,K+0.45,poly([p(x,y+d,z),p(x+w,y+d,z),p(x+w,y+d,z+h),p(x,y+d,z+h)],'#a8dcff1a',e.st||'#cfeeffaa',e.sw||1)+poly([p(x+w,y,z),p(x+w,y+d,z),p(x+w,y+d,z+h),p(x+w,y,z+h)],'#a8dcff12',e.st||'#cfeeffaa',e.sw||1)
+    +poly([p(x+w*0.15,y+d,z+h*0.15),p(x+w*0.28,y+d,z+h*0.15),p(x+w*0.48,y+d,z+h*0.85),p(x+w*0.35,y+d,z+h*0.85)],'#ffffff14','none',0))}
+
+/* ---------------- 화면별 그리기 ---------------- */
+let HLF=null;
+const hp=()=>pathOf(HLF)||{};
+const RZ=3.1;
+function machNavTip(m){return`${m.name} · ${TYPE_NM[m.type]}\n상태: ${m.type==='proc'?(m.log?ST[m.state][1]:'물류 불가'):ST[m.state][1]} · FOUP ${m.foups.length}`}
+function siteFloorLabel(n){return n.c.mov?` · Moving ${n.c.mov}`:''}
+
+function drawSite(o,site){
+  const B=[...site.kids.values()].sort((a,b)=>nat(a.name,b.name)),h=hp();
+  const per=Math.max(1,Math.min(4,Math.ceil(Math.sqrt(B.length*1.6)))),rows=Math.max(1,Math.ceil(B.length/per));
+  flat(o,-2.5,-2.5,0,per*10+1,rows*10+1.5,'#15253a','#24405f',1,-100);
+  for(let r=0;r<rows;r++){const ry=r*10+5.7;flat(o,-2.5,ry,0,per*10+1,1.7,'#1c2838','#2b3b52',1,-90);seg(o,[-2.5,ry+0.85,0],[per*10-1.5,ry+0.85,0],'#ffd66b55',1.2,-89,false,'6 6')}
+  B.forEach((b,i)=>{b._x=(i%per)*10;b._y=Math.floor(i/per)*10;b._n=Math.max(1,b.kids.size);b._h=Math.min(9,1.6+b._n*1.3);
+    const ms=allMachines(b);b._wh=ms.length>0&&ms.every(m=>m.type!=='proc')});
+  B.forEach((b,i)=>{const nx=B[i+1];if(!nx||Math.floor(i/per)!==Math.floor((i+1)/per))return;
+    const z=Math.min(b._h,nx._h)*0.55;box(o,b._x+6,b._y+1.5,z,4,1,0.45,RAIL,{k:b._x+8+b._y+2});
+    const pth=[[b._x+6.2,b._y+2,z+0.62],[nx._x-0.2,b._y+2,z+0.62]];flow(o,pth.map(p=>[p[0],p[1],z+0.46]),'#bfe8ff99');
+    for(let j=0;j<2;j++)mover(o,pth,veh(o,1.2,j===0&&(b.c.mov||nx.c.mov)?MV:0),7+i%3,j*3.5+i,1)});
+  B.forEach(b=>{
+    const hit=h.site===site.name&&h.bld===b.name;
+    o.cur=nav(o,{lvl:'bld',site:site.name,bld:b.name},`${b.name} · ${b._n}개 층\nFOUP ${fmt(b.c.all)}${siteFloorLabel(b)}${b.c.down?`\n고장 Machine ${b.c.down}`:''}`);
+    let band=null;if(hit&&h.floor){const fl=[...b.kids.keys()].sort((a,c)=>floorKey(a)-floorKey(c)||nat(a,c)),fi=fl.indexOf(h.floor);if(fi>=0)band=[fi*b._h/b._n,(fi+1)*b._h/b._n]}
+    bldg(o,b._x,b._y,6,4,b._h,b._n,b._wh?'#55708f':'#4a78b0',{band,dock:b._wh});
+    tag(o,b._x,b._y+4,b._h,`${b.name} · FOUP ${fmt(b.c.all)}`,{bold:1,dy:-30,b:hit?HL:(b.c.down?'#ff4d4f':undefined),tc:hit?HL:undefined});
+    o.cur=null});
+  [[-1.8,-1.8],[per*10-2.2,-1.8],[-1.8,rows*10-3]].forEach(([tx,ty])=>{box(o,tx+0.15,ty+0.15,0,0.12,0.12,0.4,'#6b4f2a',{k:tx+ty});box(o,tx,ty,0.4,0.42,0.42,0.5,'#2e8b57',{k:tx+ty+0.01})});
+}
+function drawBld(o,b,site){
+  const F=[...b.kids.values()].sort((a,c)=>floorKey(a.name)-floorKey(c.name)||nat(a.name,c.name)),h=hp(),W=12,D=8;
+  F.forEach((f,i)=>{
+    const ox=i*7,oy=-i*7,z=i*4.2,hit=h.bld===b.name&&h.floor===f.name;
+    o.cur=nav(o,{lvl:'floor',site,bld:b.name,floor:f.name},`${f.name} · FOUP ${fmt(f.c.all)}${siteFloorLabel(f)}`);
+    box(o,ox,oy,z,W,D,0.4,'#2a3a52',{k:i*100,st:hit?HL:'#3a5577',sw:hit?2.2:1});
+    const A=[...f.kids.values()].sort((a,c)=>nat(a.name,c.name)),tot=A.reduce((s,a)=>s+Math.max(1,a.c.mach),0)||1;let cx=0.3;
+    A.forEach((a,ai)=>{const w=(W-0.6)*Math.max(1,a.c.mach)/tot,col=ACOL[ai%8];
+      flat(o,ox+cx,oy+0.3,z+0.4,w-0.15,D-0.6,col+'30',col+'aa',1,i*100+1);
+      const ms=allMachines(a).filter(m=>m.type!=='stb').slice(0,40),cols=Math.max(1,Math.floor((w-0.2)/0.8));
+      ms.forEach((m,j)=>{const bx=ox+cx+0.15+(j%cols)*0.8,by=oy+0.6+Math.floor(j/cols)*1.0;if(by>oy+D-1)return;
+        const hgt=m.type==='stk'?1.0:m.type==='stb'?0.25:0.45,col2=m.type==='stk'?STKC:m.type==='stb'?STBC:(m.log?'#8aa1bf':GRAYM);
+        box(o,bx,by,z+0.4+(m.type==='stb'?0.9:0),0.55,0.65,hgt,col2,{k:i*100+2+(bx-ox+by-oy)*0.01,sw:0.4})});
+      cx+=w});
+    tag(o,ox+W,oy+D*0.5,z+0.4,`${f.name} · FOUP ${fmt(f.c.all)}${siteFloorLabel(f)}`,{dy:-18,bold:1,b:hit?HL:undefined,tc:hit?HL:undefined});
+    o.cur=null});
+}
+function bayGeom(bay){
+  const slots=bay.machines.filter(m=>m.type!=='stb').sort((a,b)=>(a.type==='stk')-(b.type==='stk')||nat(a.name,b.name)),stbs=bay.machines.filter(m=>m.type==='stb').sort((a,b)=>nat(a.name,b.name));
+  const L=[],R=[];slots.forEach((m,i)=>(i%2?R:L).push(m));
+  const n=Math.max(L.length,R.length,1);return{L,R,stbs,len:Math.max(3,n*2.1+0.4),w:4.2}}
+function drawBayGeo(o,b,g,bx,by,mode,opt){
+  const det=mode==='bay',h=hp(),pth=opt.path,CZ=RZ+1.2;
+  let bayNav=null;
+  if(!det){const hit=h.site===pth.site&&h.bld===pth.bld&&h.floor===pth.floor&&h.area===pth.area&&h.bay===b.name;
+    bayNav=nav(o,Object.assign({},pth,{lvl:'bay',bay:b.name}),`${b.name} · Machine ${b.machines.length}\nFOUP ${fmt(b.c.all)}${b.c.down?` · 고장 ${b.c.down}`:''}`);
+    o.cur=bayNav;flat(o,bx-0.25,by-0.25,0.01,g.w+0.5,g.len+0.5,hit?HL+'40':'#ffffff07',hit?HL:'#ffffff20',hit?2.2:0.8,-400);
+    txt(o,bx+g.w/2,by-0.25,0,b.name+(b.c.all?` (${b.c.all})`:''),10.5,hit?HL:'#c9d6e6',1)}
+  else{flat(o,bx+1.4,by-0.2,0.01,1.4,g.len+1.4,'#ffffff08','#ffffff15',1,-300);
+    push(o,-2,poly([P(o,bx+0.9,by-0.3,CZ),P(o,bx+3.3,by-0.3,CZ),P(o,bx+3.3,by+g.len+1.4,CZ),P(o,bx+0.9,by+g.len+1.4,CZ)],'#9fb4cc12','#9fb4cc55',1),true);
+    for(let yy=by;yy<by+g.len+1.2;yy+=1.6)seg(o,[bx+2.1,yy,RZ],[bx+2.1,yy,CZ],'#7f93ad',1.2,0.5,true)}
+  const isHit=m=>h.mach===m.name;
+  const slot=(m,i,right)=>{
+    const y=by+0.4+i*2.1,big=m.type==='stk',w=big?1.5:1.4,x=right?bx+g.w-w:bx;
+    if(det)o.cur=nav(o,Object.assign({},pth,{lvl:'mach',bay:b.name,mach:m.name}),machNavTip(m));else o.cur=bayNav;
+    const hl=isHit(m)?{st:HL,sw:det?2.6:1.8}:{};
+    if(big){stk(o,x,y,0,w,1.8,2.6,det?5:3,Object.assign({count:m.foups.length,tw:det},hl));
+      if(det)txt(o,x+w/2,y+0.9,3.1,m.name,11.5,isHit(m)?HL:'#e0a85a',1);return}
+    mach(o,x,y,0,w,1.5,1.3,Object.assign({state:m.state,log:m.log,glow:true,detail:det},hl));
+    if(m.log){const ports=m.ports.length?m.ports.slice(0,3):[{name:'',type:'InOut'},{name:'',type:'InOut'}],np=ports.length,pd=Math.min(0.45,1.4/np-0.05);
+      ports.forEach((pt,j)=>{const py=y+0.08+j*(pd+0.05),px=right?x-0.4:x+w+0.02;
+        box(o,px,py,0,0.38,pd,0.34,'#5d6f88',{sw:0.4});
+        if(det&&pt.name)box(o,px,py,0.34,0.38,pd,0.03,PTC[pt.type][0],{sw:0.3});
+        const f=m.ports.length?m.foups.find(f=>f.port===pt.name):m.foups[j];
+        if(f){const me=f===HLF;box(o,px+0.03,py+0.04,0.37,0.32,pd-0.08,0.3,isEmptyFoup(f)?'#a0a6b0':FO,{sw:me?2:0.4,st:me?'#fff':undefined});if(me&&det)ring(o,px+0.19,py+pd/2,0.5,10)}})}
+    if(det)txt(o,x+w/2,y+0.75,2.45,m.name,11.5,isHit(m)?HL:(m.log?'#dfe8f5':'#9aa1ab'),1)};
+  g.L.forEach((m,i)=>slot(m,i,false));g.R.forEach((m,i)=>slot(m,i,true));
+  const n=g.stbs.length;
+  g.stbs.forEach((m,i)=>{const sy=by+0.3+i*(g.len-0.4)/Math.max(1,n),sz=RZ-0.75,me=isHit(m);
+    if(det){o.cur=nav(o,Object.assign({},pth,{lvl:'mach',bay:b.name,mach:m.name}),machNavTip(m));
+      flat(o,bx+1.65,sy,0.02,0.9,0.7,STBC+'22',STBC,1.2,-30,'4 3');
+      for(const[a,c]of[[bx+1.7,sy+0.05],[bx+2.5,sy+0.05],[bx+1.7,sy+0.65],[bx+2.5,sy+0.65]])seg(o,[a,c,sz+0.1],[a,c,CZ],'#c9b8ff',1.4,sy+(c>sy+0.3?0.8:0.2),true)}
+    else o.cur=bayNav;
+    box(o,bx+1.65,sy,sz,0.9,0.7,0.1,STBC,{top:1,k:sy+0.5,st:me?HL:undefined,sw:me?2:undefined});
+    if(m.foups.length)box(o,bx+1.85,sy+0.1,sz+0.1,0.5,0.45,0.42,FO,{top:1,k:sy+0.55,sw:0.4});
+    if(det&&me)txt(o,bx+2.1,sy+0.35,sz-0.35,m.name,11,HL)});
+  o.cur=null;
+  line(o,[[bx+2.1,by-0.1,RZ],[bx+2.1,opt.railTo,RZ]],RAIL,det?3:2);
+  if(det){flow(o,[[bx+2.1,by,RZ],[bx+2.1,opt.railTo,RZ]]);for(let i=0;i<2;i++)mover(o,[[bx+2.1,by+0.4,RZ-0.88],[bx+2.1,opt.railTo-0.2,RZ-0.88]],veh(o,1.6,i===0&&b.c.mov?MV:true),9,i*4.5,1)}
+  else if(opt.vehicle)mover(o,[[bx+2.1,by+0.3,RZ-0.8],[bx+2.1,opt.railTo,RZ-0.8]],veh(o,1.4,opt.vehicle===2?true:0),6+opt.idx%4,opt.idx*1.1,1)}
+function floorLayout(f){
+  const A=[...f.kids.values()].sort((a,b)=>nat(a.name,b.name)),MAXW=46,rows=[];let row=[],rw=0;
+  A.forEach(a=>{const bays=[...a.kids.values()].filter(b=>b.isBay&&b.machines.length).sort((x,y)=>nat(x.name,y.name));
+    a._g=bays.map(b=>({b,g:bayGeom(b)}));a._w=Math.max(4,a._g.reduce((s,q)=>s+q.g.w+1,0)+0.8);a._d=Math.max(3.5,...a._g.map(q=>q.g.len))+1.2;
+    if(row.length&&rw+a._w>MAXW){rows.push(row);row=[];rw=0}a._x=rw;row.push(a);rw+=a._w+0.8});
+  if(row.length)rows.push(row);
+  let y=0,maxW=4;rows.forEach(r=>{r._d=Math.max(...r.map(a=>a._d));r.forEach(a=>a._y=y+r._d-a._d);r._cy=y+r._d+1;maxW=Math.max(maxW,...r.map(a=>a._x+a._w));y+=r._d+2});
+  return{A,rows,maxW,depth:Math.max(y,4)}}
+function drawFloor(o,f,path){
+  const{A,rows,maxW,depth}=floorLayout(f);
+  box(o,-1.6,-1.6,-0.3,maxW+3.2,depth+1.6,0.3,'#243349',{k:-1000});
+  if(!rows.length){txt(o,maxW/2,depth/2,0,'이 층에는 Machine이 없습니다',14,'#8ea3bf');return}
+  let bi=0;
+  rows.forEach((r,ri)=>{
+    r.forEach(a=>{const col=ACOL[A.indexOf(a)%8];flat(o,a._x,a._y,0,a._w,a._d,col+'1c',col+'88',1,-500);
+      tag(o,a._x+0.3,a._y+0.3,0,`${a.name} · FOUP ${fmt(a.c.all)}`,{b:col,tc:col,bold:1,dy:-38});
+      let bx=a._x+0.9;a._g.forEach(({b,g})=>{const by=a._y+a._d-g.len-0.7;drawBayGeo(o,b,g,bx,by,'floor',{railTo:r._cy,path:Object.assign({},path,{area:a.name}),vehicle:bi%2===0?(bi%4===0?2:1):0,idx:bi});bi++;bx+=g.w+1})});
+    line(o,[[-0.9,r._cy,RZ],[maxW+0.9,r._cy,RZ]],RAIL,2.6);flow(o,[[-0.9,r._cy,RZ],[maxW+0.9,r._cy,RZ]]);
+    const L=[[-0.6,r._cy,RZ-0.85],[maxW+0.6,r._cy,RZ-0.85]];for(let i=0;i<3;i++)mover(o,L,veh(o,1.6,i===0&&f.c.mov?MV:(i===1?true:0)),16+ri*2,i*5.3,1)});
+  if(rows.length>1){line(o,[[-0.9,rows[0]._cy,RZ],[-0.9,rows[rows.length-1]._cy,RZ]],RAIL,2.6);line(o,[[maxW+0.9,rows[0]._cy,RZ],[maxW+0.9,rows[rows.length-1]._cy,RZ]],RAIL,2.6)}
+}
+function drawBay(o,b,path){
+  const g=bayGeom(b);
+  box(o,-1.2,-1.2,-0.25,g.w+2.4,g.len+3.4,0.25,'#243349',{k:-1000});
+  drawBayGeo(o,b,g,0,0,'bay',{railTo:g.len+1.6,path});
+  line(o,[[-1.2,g.len+1.6,RZ],[g.w+1.2,g.len+1.6,RZ]],RAIL,3);
+  if(!b.machines.length)txt(o,g.w/2,g.len/2,0,'이 Bay에는 Machine이 없습니다',14,'#8ea3bf')}
+function drawMach(o,m){
+  const me=HLF&&HLF.m===m?HLF:null;
+  box(o,-1.6,-1.2,-0.15,7,6.4,0.15,'#243349',{k:-1000});
+  if(m.type==='stk'){
+    stk(o,0,0,0,3,3.6,4.4,6,{count:m.foups.length,tw:true,st:HL,sw:2});
+    mover(o,[[1.5,0.4,0.35],[1.5,3.2,0.35]],mast(o,4),7,0,1);
+    const ports=m.ports.length?m.ports:[{name:'IN',type:'In'},{name:'OUT',type:'Out'}];
+    ports.slice(0,4).forEach((pt,j)=>{const x=0.15+j*0.75;box(o,x,3.6,0,0.6,0.55,0.85,'#5d6f88',{k:x+5});faceL(o,x,3.6,0,0.6,0.55,0.05,0.55,0.1,0.3,PTC[pt.type][0],x+5.01);txt(o,x+0.3,4.45,0,pt.name||PTC[pt.type][1],11,PTC[pt.type][0])});
+    tag(o,1.5,0,4.6,`${m.name} · 안에 FOUP ${m.foups.length}`,{bold:1,b:STKC,tc:'#e0a85a'});return}
+  if(m.type==='stb'){
+    const CZ=4.6;push(o,-2,poly([P(o,-0.6,-0.4,CZ),P(o,3.2,-0.4,CZ),P(o,3.2,2.2,CZ),P(o,-0.6,2.2,CZ)],'#9fb4cc14','#9fb4cc66',1),true);
+    line(o,[[-0.6,0.9,3.9],[3.2,0.9,3.9]],RAIL,4);
+    flat(o,0.2,0.2,0.01,2.2,1.4,STBC+'22',STBC,1.2,-30,'5 4');
+    for(const[a,c]of[[0.25,0.25],[2.35,0.25],[0.25,1.55],[2.35,1.55]])seg(o,[a,c,2.7],[a,c,CZ],'#c9b8ff',2,c>1?6:1,true);
+    box(o,0.2,0.2,2.6,2.2,1.4,0.12,STBC,{top:1,k:3,st:HL,sw:2});
+    const n=Math.min(3,m.foups.length);for(let j=0;j<3;j++){const x=0.35+j*0.7;if(j<n)box(o,x,0.45,2.72,0.55,0.9,0.5,FO,{top:1,k:3.1+j,sw:me&&m.foups[j]===me?2:0.4,st:me&&m.foups[j]===me?'#fff':undefined})}
+    tag(o,1.3,0.9,3.3,`${m.name} · FOUP ${m.foups.length}`,{bold:1,b:STBC,tc:'#c9b8ff',dy:-46});return}
+  const ports=m.log?(m.ports.length?m.ports:Array.from({length:Math.max(2,Math.min(4,m.foups.length))},(_,j)=>({name:'',type:'InOut'}))):[];
+  const np=ports.length,W=Math.max(3.3,np*0.8+0.2),pw=np?Math.min(0.7,(W-0.1)/np-0.1):0;
+  mach(o,0,0,0,W,1.85,2.5,{state:m.state,log:m.log,st:HL,sw:2.4,detail:true});
+  const ec=m.log?'#a9bad0':GRAYM;box(o,0,1.85,0,W,0.65,1.95,ec,{k:W/2+1.9});
+  faceL(o,0,1.85,0,W,0.65,0.15,W-0.15,1.0,1.75,m.log?'#0b2a4acc':'#3a3f48',W/2+1.91,m.log?'#3fb6ff':'#6b717c');
+  faceL(o,0,1.85,0,W,0.65,0.25,W*0.4,1.1,1.65,'#ffffff12',W/2+1.92);
+  box(o,-0.9,0.2,0,0.9,1.0,1.6,m.log?'#7d92ad':GRAYM,{k:0});box(o,-0.9,1.3,0,0.9,1.0,1.6,m.log?'#7d92ad':GRAYM,{k:0.5});
+  cyl(o,-0.45,0.2,1.6,0.12,0.9,'#c9d2de',{k:0.3});cyl(o,-0.45,1.3,1.6,0.12,0.9,'#c9d2de',{k:0.8});
+  ports.forEach((pt,j)=>{const x=0.08+j*(pw+0.1);box(o,x,2.5,0,pw,0.6,0.85,'#5d6f88');
+    faceL(o,x,2.5,0,pw,0.6,0.04,pw-0.04,0.12,0.3,PTC[pt.type][0],x+3.2,'#00000066');
+    const f=m.ports.length?m.foups.find(f=>f.port===pt.name):m.foups[j];
+    if(f){box(o,x+0.07,2.56,0.85,pw-0.14,0.46,0.48,isEmptyFoup(f)?'#a0a6b0':FO,f===me?{st:'#fff',sw:2}:{});if(f===me){ring(o,x+pw/2,2.8,1.0,16);tag(o,x+pw/2,2.8,1.4,f.id,{b:HL,tc:'#1a1200',bg:HL,bold:1,dy:-64,fs:13})}}
+    txt(o,x+pw/2,3.35,0,(pt.name||'Port '+(j+1))+' '+PTC[pt.type][1].replace('Port',''),11,PTC[pt.type][0])});
+  tag(o,W/2,0,3.1,m.name+(m.log?'':' · 물류 불가'),{bold:1,b:m.log?HL:'#6b717c',tc:m.log?HL:'#9aa1ab',dy:-20})}
+
+const VIEWS={site:drawSite,bld:drawBld,floor:drawFloor,bay:drawBay,mach:drawMach};
+const MAXS={site:34,bld:30,floor:46,bay:60,mach:80};
+
+/* ---------------- 이동·화면 갱신 ---------------- */
+let cur={lvl:'site',site:null},NAVS=[],cam={k:1,x:0,y:0},goingBack=false;
+const LV=['site','bld','floor','bay','mach'];
+const firstSite=()=>[...T.keys()].sort(nat)[0];
+function nodeOf(c){
+  const s=T.get(c.site);if(!s||c.lvl==='site')return s;
+  const b=s.kids.get(c.bld);if(!b||c.lvl==='bld')return b;
+  const f=b.kids.get(c.floor);if(!f||c.lvl==='floor')return f;
+  const a=f.kids.get(c.area),y=a&&a.kids.get(c.bay);if(c.lvl==='bay')return y&&y.isBay?y:null;
+  const m=MI.get(c.mach);return m&&y&&y.machines.includes(m)?m:null}
+function go(to,back){goingBack=!!back||LV.indexOf(to.lvl)<LV.indexOf(cur.lvl);cur=to;resetCam();render()}
+function up(){const i=LV.indexOf(cur.lvl);if(i<=0)return;const t=Object.assign({},cur,{lvl:LV[i-1]});go(t,true)}
+function goFoup(f){if(!f)return;HLF=f;const p=pathOf(f);
+  if(f.m)go(Object.assign({lvl:'mach'},p));
+  else if(p.bay&&p.area)go(Object.assign({lvl:'bay'},p));
+  else if(p.floor)go({lvl:'floor',site:p.site,bld:p.bld,floor:p.floor});
+  else if(p.bld)go({lvl:'bld',site:p.site,bld:p.bld});
+  else go({lvl:'site',site:p.site});
+  $('#qx').style.display='block'}
+function resetCam(){cam={k:1,x:0,y:0}}
+function applyCam(){const g=$('#cam');if(g)g.setAttribute('transform',`translate(${cam.x.toFixed(1)},${cam.y.toFixed(1)}) scale(${cam.k.toFixed(3)})`)}
+
+const svg=$('#sv'),stage=$('#stage'),side=$('#side');
+function render(){
+  const W=Math.max(200,stage.clientWidth),H=Math.max(200,stage.clientHeight);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  $('#stamp').textContent=`${DB.src} · ${DB.time.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} 조회 기준 · 움직임은 화면 연출`;
+  if(!T.size){svg.innerHTML='';side.innerHTML='<div class="empty">데이터가 없습니다.<br>"데이터 불러오기"로 FOUP 표를 넣거나<br>"양식 · 샘플" 메뉴에서 샘플을 쓰세요.</div>';$('#crumb').innerHTML='';$('#legend').style.display='none';return}
+  let n=nodeOf(cur);
+  while(!n&&cur.lvl!=='site'){cur=Object.assign({},cur,{lvl:LV[LV.indexOf(cur.lvl)-1]});n=nodeOf(cur)}
+  if(!n){cur={lvl:'site',site:firstSite()};n=nodeOf(cur)}
+  const draw=VIEWS[cur.lvl],arg=cur.lvl==='bld'?cur.site:cur;
+  const o1=mkO(1,0,0,true);draw(o1,n,arg);
+  const bb=o1.bb,bw=Math.max(1,bb[2]-bb[0]),bh=Math.max(1,bb[3]-bb[1]),padX=70,padY=80;
+  const s=Math.max(4,Math.min(MAXS[cur.lvl],(W-padX*2)/bw,(H-padY*2)/bh));
+  const o=mkO(s,0,0);o.ox=(W-bw*s)/2-bb[0]*s;o.oy=(H-bh*s)/2-bb[1]*s+14;draw(o,n,arg);
+  NAVS=o.navs;const srt=a=>a.sort((p,q)=>p.k-q.k).map(i=>i.s).join('');
+  svg.innerHTML=`<g id="cam"><g class="enter${goingBack?' back':''}" style="transform-origin:${W/2}px ${H/2}px">${srt(o.items)}${srt(o.top)}${o.post.join('')}</g></g>`;
+  goingBack=false;applyCam();renderSide(n);renderCrumb();renderLegend();
+  $('#hint').textContent={site:'건물을 누르면 층 보기',bld:'층을 누르면 Area · Bay 보기',floor:'Bay를 누르면 확대',bay:'Machine · Stoker · STB를 누르면 FOUP 목록',mach:'Esc 또는 위 경로로 돌아가기'}[cur.lvl]+' · 휠 확대 · 끌어서 이동';
+  try{history.replaceState(null,'','#'+encodeURIComponent(JSON.stringify({c:cur,f:HLF?HLF.id:null})))}catch(e){}
+}
+function renderLegend(){
+  const lv=cur.lvl,el=$('#legend');el.style.display='';
+  const st=Object.values(ST).map(v=>`<span class="dot" style="background:${v[0]}"></span>${v[1]}`).join('');
+  let h='';
+  if(lv==='floor'||lv==='bay')h=`<div><b>상태등</b>${st}<span class="sq" style="background:${GRAYM}"></span>물류 불가</div><div><b>표시</b><span class="sq" style="background:${FO}"></span>FOUP<span class="sq" style="background:${STKC}"></span>Stoker<span class="sq" style="background:${STBC}"></span>천장 STB<span class="sq" style="background:${MV}"></span>Moving</div>`;
+  else if(lv==='mach')h=`<div><b>Port</b>${Object.values(PTC).map(v=>`<span class="sq" style="background:${v[0]}"></span>${v[1]}`).join('')}</div><div><b>상태등</b>${st}</div>`;
+  else h=`<div><b>표시</b><span class="sq" style="background:${RAIL}"></span>이송로<span class="sq" style="background:${MV}"></span>Moving FOUP<span class="sq" style="background:${HL}"></span>검색 위치</div>`;
+  el.innerHTML=h}
+function renderCrumb(){
+  const c=cur,parts=[];
+  const sites=[...T.keys()].sort(nat);
+  if(sites.length<2)parts.push(`<a data-go='${esc(JSON.stringify({lvl:'site',site:c.site}))}' class="${c.lvl==='site'?'cur':''}">${esc(c.site)}</a>`);
+  else parts.push(`<select id="siteSel" style="background:#16233a;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:2px 4px">${sites.map(s=>`<option ${s===c.site?'selected':''}>${esc(s)}</option>`).join('')}</select>`);
+  const add=(lvl,label,to)=>{parts.push('›');parts.push(`<a data-go='${esc(JSON.stringify(to))}' class="${c.lvl===lvl?'cur':''}">${esc(label)}</a>`)};
+  if(LV.indexOf(c.lvl)>=1)add('bld',c.bld,{lvl:'bld',site:c.site,bld:c.bld});
+  if(LV.indexOf(c.lvl)>=2)add('floor',c.floor,{lvl:'floor',site:c.site,bld:c.bld,floor:c.floor});
+  if(LV.indexOf(c.lvl)>=3)add('bay',`${c.area} › ${c.bay}`,{lvl:'bay',site:c.site,bld:c.bld,floor:c.floor,area:c.area,bay:c.bay});
+  if(c.lvl==='mach')add('mach',c.mach,c);
+  if(c.lvl!=='site')parts.push(`<button class="up" id="btnUp">↑ 위로 (Esc)</button>`);
+  $('#crumb').innerHTML=parts.join(' ');
+  const ss=$('#siteSel');if(ss)ss.onchange=()=>go({lvl:'site',site:ss.value})}
+
+/* ---------------- 오른쪽 정보 ---------------- */
+function sumHtml(c){return`<div class="sum"><div class="all"><b>${fmt(c.all)}</b><span>전체 FOUP</span></div><div><b>${fmt(c.proc)}</b><span>공정 Machine</span></div><div><b>${fmt(c.stk)}</b><span>Stoker 안</span></div><div><b>${fmt(c.stb)}</b><span>천장 STB</span></div><div><b style="color:${MV}">${fmt(c.mov)}</b><span>Moving</span></div></div>`}
+const goAttr=to=>`data-go='${esc(JSON.stringify(to))}'`;
+function li(to,name,cnt,extra){return`<div class="li${extra&&extra.cls?' '+extra.cls:''}" ${goAttr(to)}>${extra&&extra.dot?`<span class="dot" style="background:${extra.dot};margin:0"></span>`:''}<span class="n">${esc(name)}</span><span class="c">${cnt}</span></div>`}
+function movingHtml(list){
+  if(!list.length)return'';
+  const rows=list.slice(0,60).map(f=>`<tr class="click${f===HLF?' hit':''}" data-foup="${esc(f.id)}"><td>${esc(f.id)}</td><td>${esc(f.from||'—')} → ${esc(f.to||'—')}</td><td>${esc(f.time)}</td></tr>`).join('');
+  return`<h3>Moving · Machine에 없음 (${list.length})</h3><table><tr><th>FOUP</th><th>출발 → 도착</th><th>시간</th></tr>${rows}</table>${list.length>60?`<div class="more">+ ${list.length-60}개 더 · 검색으로 찾기</div>`:''}`}
+function renderSide(n){
+  const c=cur,h=hp();let s='';
+  if(c.lvl==='site'){
+    s+=`<div class="title">${esc(n.name)}</div><div class="sub">건물 ${n.kids.size}개</div>${sumHtml(n.c)}`;
+    if(T.size>1)s+=`<h3>Site</h3>`+[...T.values()].sort((a,b)=>nat(a.name,b.name)).map(x=>li({lvl:'site',site:x.name},x.name,`건물 ${x.kids.size} · FOUP ${fmt(x.c.all)}`,{cls:x===n?'on':''})).join('');
+    s+=`<h3>건물</h3>`+[...n.kids.values()].sort((a,b)=>nat(a.name,b.name)).map(b=>li({lvl:'bld',site:n.name,bld:b.name},b.name,`${b.kids.size}개 층 · FOUP ${fmt(b.c.all)}`,{cls:h.bld===b.name&&h.site===n.name?'on':''})).join('');
+    s+=movingHtml(n.moving)}
+  else if(c.lvl==='bld'){
+    s+=`<div class="title">${esc(n.name)}</div><div class="sub">${esc(c.site)} · ${n.kids.size}개 층</div>${sumHtml(n.c)}<h3>층</h3>`;
+    s+=[...n.kids.values()].sort((a,b)=>floorKey(b.name)-floorKey(a.name)||nat(a.name,b.name)).map(f=>li({lvl:'floor',site:c.site,bld:n.name,floor:f.name},f.name,`FOUP ${fmt(f.c.all)}${f.c.mov?' · Moving '+f.c.mov:''}${f.c.down?' · 고장 '+f.c.down:''}`,{cls:h.bld===n.name&&h.floor===f.name?'on':''})).join('');
+    s+=movingHtml(n.moving)}
+  else if(c.lvl==='floor'){
+    s+=`<div class="title">${esc(c.bld)} ${esc(n.name)}</div><div class="sub">Area ${n.kids.size}개</div>${sumHtml(n.c)}<h3>Area · Bay</h3>`;
+    s+=[...n.kids.values()].sort((a,b)=>nat(a.name,b.name)).map(a=>{const bays=[...a.kids.values()].filter(b=>b.isBay).sort((x,y)=>nat(x.name,y.name));
+      return`<div class="card" style="margin-bottom:6px"><b>${esc(a.name)}</b> <span style="color:var(--mut)">· FOUP ${fmt(a.c.all)}${a.c.down?' · 고장 '+a.c.down:''}</span><div class="chips">${bays.map(b=>`<span class="chip" ${goAttr({lvl:'bay',site:c.site,bld:c.bld,floor:n.name,area:a.name,bay:b.name})} style="${h.bay===b.name&&h.area===a.name?'border-color:'+HL+';color:'+HL:''}">${esc(b.name)} · ${b.c.all}</span>`).join('')}</div></div>`}).join('');
+    s+=movingHtml(allMoving(n))}
+  else if(c.lvl==='bay'){
+    const g=bayGeom(n);
+    s+=`<div class="title">${esc(n.name)}</div><div class="sub">${esc(c.floor)} · ${esc(c.area)} · Machine ${n.machines.length}</div>${sumHtml(n.c)}<h3>Machine</h3>`;
+    s+=[...g.L,...g.R].sort((a,b)=>nat(a.name,b.name)).concat(g.stbs).map(m=>li(Object.assign({},c,{lvl:'mach',mach:m.name}),m.name,`${TYPE_NM[m.type]} · ${m.log?'FOUP '+m.foups.length:'물류 불가'}`,{dot:m.type==='proc'&&!m.log?GRAYM:ST[m.state][0],cls:(m.log?'':'gray')+(h.mach===m.name?' on':'')})).join('');
+    s+=movingHtml(n.moving)}
+  else{
+    const m=n,st=m.type==='proc'&&!m.log?['#9aa1ab','물류 불가']:ST[m.state];
+    s+=`<div class="title">${esc(m.name)}</div><div class="sub">${esc([m.site,m.bld,m.floor,m.area,m.bay].join(' › '))}</div>`;
+    s+=`<div class="card">종류: ${TYPE_NM[m.type]} · 상태: <span class="st" style="background:${st[0]}33;color:${st[0]}">${st[1]}</span>${m.type==='proc'?` · 물류: ${m.log?'가능':'불가'}`:''}<br>FOUP ${m.foups.length}개${m.ports.length?` · Port ${m.ports.length}개`:m.type==='proc'&&m.log?' · Port 정보 없음 (FOUP만 표시)':''}${m.type!=='proc'?'<br><span style="color:var(--mut)">FOUP는 Port가 아니라 장비 안에 보관된 것으로 표시합니다.</span>':''}</div>`;
+    if(m.ports.length)s+=`<h3>Port</h3><table><tr><th>Port</th><th>구분</th><th>상태</th><th>FOUP</th></tr>${m.ports.map(p=>{const f=m.type==='proc'?m.foups.find(f=>f.port===p.name):null;return`<tr><td>${esc(p.name)}</td><td><span class="st" style="background:${PTC[p.type][0]}26;color:${PTC[p.type][0]}">${PTC[p.type][1]}</span></td><td>${esc(p.state||'—')}</td><td>${f?esc(f.id):'—'}</td></tr>`}).join('')}</table>`;
+    s+=`<h3>FOUP (${m.foups.length})</h3>`;
+    if(m.foups.length>12)s+=`<input class="filter" id="ff" placeholder="FOUP · 로트 · 상태로 거르기">`;
+    s+=`<table id="ftab"></table><div class="more" id="fmore"></div>`}
+  if(WARN.length&&c.lvl==='site')s+=`<h3>알림</h3><div class="card" style="color:#ffc069">${WARN.map(esc).join('<br>')}</div>`;
+  side.innerHTML=s;
+  if(c.lvl==='mach')fillFoupTable(n,'');
+  const ff=$('#ff');if(ff)ff.oninput=()=>fillFoupTable(n,ff.value)}
+function fillFoupTable(m,q){
+  q=q.trim().toLowerCase();const list=m.foups.filter(f=>!q||[f.id,f.lot,f.status,f.port].join(' ').toLowerCase().includes(q));
+  const proc=m.type==='proc';
+  $('#ftab').innerHTML=`<tr><th>FOUP</th><th>로트</th>${proc?'<th>Port</th><th>구분</th>':''}<th>상태</th><th>시간</th></tr>`+list.slice(0,300).map(f=>{const p=portOf(f);
+    return`<tr class="${f===HLF?'hit':''}"><td>${f===HLF?'<b>':''}${esc(f.id)}${f===HLF?'</b>':''}</td><td>${esc(f.lot||'—')}</td>${proc?`<td>${esc(f.port||'—')}</td><td>${p?`<span class="st" style="background:${PTC[p.type][0]}26;color:${PTC[p.type][0]}">${PTC[p.type][1]}</span>`:'—'}</td>`:''}<td>${esc(f.status||'—')}</td><td>${esc(f.time||'')}</td></tr>`}).join('')+(list.length?'':`<tr><td colspan="6" style="color:var(--mut)">FOUP 없음</td></tr>`);
+  $('#fmore').textContent=list.length>300?`+ ${list.length-300}개 더 · 위 칸으로 거르세요`:''}
+
+/* ---------------- 검색 ---------------- */
+const qEl=$('#q'),sres=$('#sres');let sIdx=0,sList=[];
+function doSearch(){
+  const q=qEl.value.trim().toUpperCase();$('#qx').style.display=q||HLF?'block':'none';
+  if(!q){sres.style.display='none';return}
+  sList=[];for(const[k,f]of FI){if(k.includes(q)){sList.push(f);if(sList.length>=30)break}}
+  sList.sort((a,b)=>(a.id.toUpperCase()===q?-1:0)-(b.id.toUpperCase()===q?-1:0)||nat(a.id,b.id));sIdx=0;
+  sres.innerHTML=sList.length?sList.map((f,i)=>`<div data-i="${i}" class="${i===0?'on':''}"><b>${esc(f.id)}</b>${f.moving?` <span class="st" style="background:${MV}26;color:${MV}">Moving</span>`:''}<small>${esc(pathText(f))}</small></div>`).join(''):'<div style="cursor:default;color:var(--mut)">찾는 FOUP가 없습니다</div>';
+  sres.style.display='block'}
+qEl.addEventListener('input',doSearch);
+qEl.addEventListener('focus',()=>{if(qEl.value.trim())doSearch()});
+qEl.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!sList.length)return;sIdx=(sIdx+(e.key==='ArrowDown'?1:-1)+sList.length)%sList.length;[...sres.children].forEach((d,i)=>d.classList.toggle('on',i===sIdx))}
+  else if(e.key==='Enter'){if(sList[sIdx]){goFoup(sList[sIdx]);sres.style.display='none';qEl.blur()}}
+  else if(e.key==='Escape'){sres.style.display='none';qEl.blur()}});
+sres.addEventListener('mousedown',e=>{const d=e.target.closest('[data-i]');if(d){e.preventDefault();goFoup(sList[+d.dataset.i]);sres.style.display='none';qEl.blur()}});
+qEl.addEventListener('blur',()=>setTimeout(()=>sres.style.display='none',150));
+$('#qx').onclick=()=>{qEl.value='';HLF=null;$('#qx').style.display='none';sres.style.display='none';render()};
+
+/* ---------------- 마우스 · 키보드 ---------------- */
+const tip=$('#tip');let hovId=null,drag=null,dragged=false;
+function setHov(id){if(id===hovId)return;svg.querySelectorAll('.hov').forEach(e=>e.classList.remove('hov'));hovId=id;if(id!=null)svg.querySelectorAll(`[data-nav="${id}"]`).forEach(e=>e.classList.add('hov'))}
+svg.addEventListener('mousemove',e=>{
+  if(drag)return;const g=e.target.closest&&e.target.closest('[data-nav]');
+  if(g){const id=g.getAttribute('data-nav');setHov(id);const t=NAVS[+id];tip.textContent=t?t.tip:'';tip.style.display=t?'block':'none';
+    tip.style.left=Math.min(innerWidth-330,e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px'}
+  else{setHov(null);tip.style.display='none'}});
+svg.addEventListener('mouseleave',()=>{setHov(null);tip.style.display='none'});
+svg.addEventListener('click',e=>{if(dragged){dragged=false;return}const g=e.target.closest('[data-nav]');if(g){const t=NAVS[+g.getAttribute('data-nav')];if(t){tip.style.display='none';go(t.to)}}});
+svg.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.15:1/1.15)},{passive:false});
+function zoomAt(px,py,f){const nk=Math.min(8,Math.max(0.4,cam.k*f));cam.x=px-(px-cam.x)*nk/cam.k;cam.y=py-(py-cam.y)*nk/cam.k;cam.k=nk;applyCam()}
+svg.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y,moved:false}});
+window.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+  drag.moved=true;svg.classList.add('drag');tip.style.display='none';cam.x=drag.cx+dx;cam.y=drag.cy+dy;applyCam()});
+window.addEventListener('pointerup',()=>{if(drag&&drag.moved)dragged=true;drag=null;svg.classList.remove('drag');setTimeout(()=>dragged=false,0)});
+document.querySelectorAll('.zoom button').forEach(b=>b.onclick=()=>{const z=+b.dataset.z,r=svg.getBoundingClientRect();if(!z){resetCam();applyCam()}else zoomAt(r.width/2,r.height/2,z>0?1.3:1/1.3)});
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g&&!svg.contains(g)){try{go(JSON.parse(g.getAttribute('data-go')))}catch(x){}return}
+  const fr=e.target.closest('[data-foup]');if(fr){goFoup(FI.get(fr.getAttribute('data-foup').toUpperCase()));return}
+  if(e.target.id==='btnUp')up();
+  if(!e.target.closest('.pop'))$('#menu').style.display='none'});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.key==='/'){e.preventDefault();qEl.focus()}else if(e.key==='Escape')up()});
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(render,150)});
+
+/* ---------------- 파일 불러오기 ---------------- */
+$('#btnLoad').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{if(e.target.files.length)loadFiles([...e.target.files]);e.target.value=''};
+$('#btnTpl').onclick=e=>{e.stopPropagation();const m=$('#menu');m.style.display=m.style.display==='block'?'none':'block'};
+$('#menu').addEventListener('click',e=>{const k=e.target.getAttribute('data-tpl');if(k)download(k)});
+$('#btnSample').onclick=()=>{DB=Object.assign(genSample(),{src:'샘플 데이터',time:new Date()});HLF=null;qEl.value='';build();cur={lvl:'site',site:firstSite()};resetCam();render();toast('샘플 데이터로 되돌렸습니다.')};
+let dc=0;
+window.addEventListener('dragenter',e=>{e.preventDefault();dc++;$('#drop').style.display='flex'});
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('dragleave',()=>{if(--dc<=0){dc=0;$('#drop').style.display='none'}});
+window.addEventListener('drop',e=>{e.preventDefault();dc=0;$('#drop').style.display='none';const fs=[...(e.dataTransfer.files||[])];if(fs.length)loadFiles(fs)});
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',5000)}
+
+/* ---------------- 시작 ---------------- */
+DB=Object.assign(genSample(),{src:'샘플 데이터',time:new Date()});
+build();cur={lvl:'site',site:firstSite()};
+try{const h=JSON.parse(decodeURIComponent(location.hash.slice(1)||'null'));if(h&&h.c)cur=h.c;if(h&&h.f){const f=FI.get(String(h.f).toUpperCase());if(f){HLF=f;qEl.value=f.id;$('#qx').style.display='block'}}}catch(e){}
+render();
+</script>
+</body>
+</html>
